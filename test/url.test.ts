@@ -4,6 +4,7 @@ import test from "node:test";
 import type { AppConfig } from "../src/config.ts";
 import { buildEditorUrl, parsePreviewParamsFromUrl } from "../src/lib/url.ts";
 import { PreviewService } from "../src/services/preview-service.ts";
+import { ZERO_WIDTH_SPACE } from "../src/utils/text.ts";
 
 const testConfig: AppConfig = {
   nodeEnv: "test",
@@ -44,27 +45,48 @@ test("parsePreviewParamsFromUrl decodes t/k/u parameters", () => {
   });
 });
 
-test("PreviewService falls back to a single space when text is missing", async () => {
+test("PreviewService returns title only for plain text preview", async () => {
+  const previewService = new PreviewService(testConfig);
+  const preview = await previewService.buildFromParams(
+    { t: "你好" },
+    { sourceUrl: "http://127.0.0.1:3000/?t=%E4%BD%A0%E5%A5%BD" },
+  );
+
+  assert.equal(preview.response.inline.title, "你好");
+  assert.equal("image_key" in preview.response.inline, false);
+  assert.equal("url" in preview.response.inline, false);
+});
+
+test("PreviewService returns title and image_key without inline.url for icon preview", async () => {
+  const previewService = new PreviewService(testConfig);
+  const preview = await previewService.buildFromParams(
+    { t: "你好", k: "img_xxx" },
+    { sourceUrl: "http://127.0.0.1:3000/?t=%E4%BD%A0%E5%A5%BD&k=img_xxx" },
+  );
+
+  assert.equal(preview.response.inline.title, "你好");
+  assert.equal(preview.response.inline.image_key, "img_xxx");
+  assert.equal("url" in preview.response.inline, false);
+});
+
+test("PreviewService uses zero-width space instead of a normal space for empty text", async () => {
   const previewService = new PreviewService(testConfig);
   const preview = await previewService.buildFromParams({}, { sourceUrl: testConfig.publicBaseUrl });
 
-  assert.equal(preview.text, " ");
-  assert.equal(preview.response.inline.title, " ");
+  assert.equal(preview.text, ZERO_WIDTH_SPACE);
+  assert.equal(preview.response.inline.title, ZERO_WIDTH_SPACE);
 });
 
-test("PreviewService falls back to the editor when redirect url is invalid", async () => {
+test("PreviewService still resolves jump target to editor when u is missing", async () => {
   const previewService = new PreviewService(testConfig);
   const preview = await previewService.buildFromParams(
-    {
-      t: "hello",
-      u: "javascript:alert(1)",
-    },
-    { sourceUrl: testConfig.publicBaseUrl },
+    { t: "hello" },
+    { sourceUrl: "http://127.0.0.1:3000/?t=hello" },
   );
 
   const expected = buildEditorUrl(testConfig.publicBaseUrl, { t: "hello" });
   assert.equal(preview.jumpUrl, expected);
-  assert.equal(preview.response.inline.url.web, expected);
+  assert.equal("url" in preview.response.inline, false);
 });
 
 test("PreviewService keeps t as the primary text and treats slot as fallback", async () => {
@@ -91,4 +113,15 @@ test("PreviewService keeps t as the primary text and treats slot as fallback", a
 
   assert.equal(preview.text, "手动文案");
   assert.equal(slotResolveCount, 0);
+});
+
+test("PreviewService returns fixed editor preview for /editor links", async () => {
+  const previewService = new PreviewService(testConfig);
+  const preview = await previewService.buildFromSourceUrl(
+    "http://127.0.0.1:3000/editor?t=%E4%BD%A0%E5%A5%BD&slot=current_task",
+    { sourceUrl: "http://127.0.0.1:3000/editor?t=%E4%BD%A0%E5%A5%BD&slot=current_task" },
+  );
+
+  assert.match(preview.response.inline.title, /飞书签名设置器@127.0.0.1/);
+  assert.equal("url" in preview.response.inline, false);
 });

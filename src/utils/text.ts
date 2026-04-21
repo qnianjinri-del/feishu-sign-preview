@@ -1,3 +1,5 @@
+export const ZERO_WIDTH_SPACE = "\u200b";
+
 export function decodeUrlComponentSafe(value: string): string {
   try {
     return decodeURIComponent(value);
@@ -17,12 +19,12 @@ export function normalizeOptionalParam(value: string | null | undefined): string
 
 export function normalizePreviewText(value: string | undefined, maxLength: number): string {
   if (!value) {
-    return " ";
+    return ZERO_WIDTH_SPACE;
   }
 
   const flattened = value.replace(/\s+/g, " ").trim();
   if (flattened === "") {
-    return " ";
+    return ZERO_WIDTH_SPACE;
   }
 
   if (flattened.length <= maxLength) {

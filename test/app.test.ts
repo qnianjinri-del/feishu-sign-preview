@@ -45,6 +45,22 @@ test("GET / redirects when u is valid", async () => {
   }
 });
 
+test("GET / redirects signature links to editor when u is missing", async () => {
+  const app = await buildApp();
+
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/?t=%E4%BD%A0%E5%A5%BD",
+    });
+
+    assert.equal(response.statusCode, 302);
+    assert.equal(response.headers.location, "http://127.0.0.1:3000/editor?t=%E4%BD%A0%E5%A5%BD");
+  } finally {
+    await app.close();
+  }
+});
+
 test("GET /editor returns the self-service editor page", async () => {
   const app = await buildApp();
 
@@ -77,6 +93,7 @@ test("GET /api/debug/preview returns resolved preview payload", async () => {
     assert.equal(body.resolved.text, "你好呀~");
     assert.equal(body.resolved.iconKey, "img_v3_xxx");
     assert.equal(body.resolved.jumpUrl, "https://open.feishu.cn");
+    assert.equal("url" in body.feishuResponse.inline, false);
   } finally {
     await app.close();
   }

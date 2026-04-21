@@ -1,16 +1,25 @@
 import type { AppConfig } from "../config.js";
-import { buildEditorUrl, buildSourceUrlFromParams, isSafeRedirectUrl, toMultiUrl } from "../lib/url.js";
+import {
+  buildEditorUrl,
+  buildSourceUrlFromParams,
+  parsePreviewParamsFromUrl,
+  toMultiUrl,
+} from "../lib/url.js";
 import type {
   FeishuCardPreview,
+  FeishuInlinePreview,
   PreviewBuildResult,
   PreviewContext,
   PreviewParamsInput,
 } from "../types/index.js";
-import { normalizePreviewText } from "../utils/text.js";
+import { normalizePreviewText, ZERO_WIDTH_SPACE } from "../utils/text.js";
 
 import { IconService } from "./icon-service.js";
 import { SlotService } from "./slot-service.js";
 import { VariableService } from "./variable-service.js";
+
+const SITE_PREVIEW_TITLE = "飞书自定义链接预览";
+const EDITOR_PREVIEW_TITLE = "飞书签名设置器";
 
 export class PreviewService {
   constructor(
@@ -21,9 +30,28 @@ export class PreviewService {
   ) {}
 
   async buildFromSourceUrl(sourceUrl: string, context: PreviewContext): Promise<PreviewBuildResult> {
-    const { parsePreviewParamsFromUrl } = await import("../lib/url.js");
+    const url = new URL(sourceUrl);
     const params = parsePreviewParamsFromUrl(sourceUrl);
-    return this.buildFromParams(params, context, sourceUrl);
+
+    if (url.pathname === "/editor") {
+      return this.buildStaticPreview({
+        sourceUrl,
+        raw: params,
+        title: this.buildHostTitle(EDITOR_PREVIEW_TITLE, url.hostname),
+        jumpUrl: sourceUrl,
+      });
+    }
+
+    if (url.pathname === "/" && (params.t || params.k || params.slot)) {
+      return this.buildFromParams(params, context, sourceUrl);
+    }
+
+    return this.buildStaticPreview({
+      sourceUrl,
+      raw: params,
+      title: this.buildHostTitle(SITE_PREVIEW_TITLE, url.hostname),
+      jumpUrl: sourceUrl,
+    });
   }
 
   async buildFromParams(
@@ -33,16 +61,10 @@ export class PreviewService {
   ): Promise<PreviewBuildResult> {
     const slotValue = params.t ? undefined : await this.slotService.resolve(params.slot, context);
     const candidateText = params.t ?? slotValue;
-    const resolvedText = await this.variableService.resolveText(candidateText ?? " ", context);
+    const resolvedText = await this.variableService.resolveText(candidateText ?? ZERO_WIDTH_SPACE, context);
     const text = normalizePreviewText(resolvedText, this.appConfig.maxTextLength);
     const iconKey = this.iconService.resolveIconKey(params.k);
-    const jumpUrl = isSafeRedirectUrl(params.u ?? "")
-      ? (params.u as string)
-      : buildEditorUrl(this.appConfig.publicBaseUrl, {
-          t: params.t,
-          k: params.k,
-          slot: params.slot,
-        });
+    const jumpUrl = this.resolveJumpUrl(params);
 
     const card = this.appConfig.enableCardPreview
       ? this.buildCardPreview({ text, jumpUrl, iconKey, sourceUrl })
@@ -56,11 +78,7 @@ export class PreviewService {
       slot: params.slot,
       raw: params,
       response: {
-        inline: {
-          title: text,
-          image_key: iconKey,
-          url: toMultiUrl(jumpUrl),
-        },
+        inline: this.buildInlinePreview(text, iconKey),
         card,
       },
     };
@@ -68,7 +86,59 @@ export class PreviewService {
 
   async buildFallback(context?: Partial<PreviewContext>): Promise<PreviewBuildResult> {
     const sourceUrl = context?.sourceUrl ?? this.appConfig.publicBaseUrl;
-    return this.buildFromParams({}, { sourceUrl }, sourceUrl);
+
+    try {
+      return await this.buildFromSourceUrl(sourceUrl, { sourceUrl });
+    } catch {
+      const url = new URL(this.appConfig.publicBaseUrl);
+      return this.buildStaticPreview({
+        sourceUrl: this.appConfig.publicBaseUrl,
+        raw: {},
+        title: this.buildHostTitle(SITE_PREVIEW_TITLE, url.hostname),
+        jumpUrl: this.appConfig.helpUrl,
+      });
+    }
+  }
+
+  private buildStaticPreview(input: {
+    sourceUrl: string;
+    raw: PreviewParamsInput;
+    title: string;
+    jumpUrl: string;
+  }): PreviewBuildResult {
+    return {
+      text: input.title,
+      iconKey: undefined,
+      jumpUrl: input.jumpUrl,
+      sourceUrl: input.sourceUrl,
+      raw: input.raw,
+      response: {
+        inline: this.buildInlinePreview(input.title, undefined),
+      },
+    };
+  }
+
+  private buildInlinePreview(text: string, iconKey: string | undefined): FeishuInlinePreview {
+    return {
+      title: text === "" ? ZERO_WIDTH_SPACE : text,
+      ...(iconKey ? { image_key: iconKey } : {}),
+    };
+  }
+
+  private resolveJumpUrl(params: PreviewParamsInput): string {
+    if (params.u) {
+      return params.u;
+    }
+
+    return buildEditorUrl(this.appConfig.publicBaseUrl, {
+      t: params.t,
+      k: params.k,
+      slot: params.slot,
+    });
+  }
+
+  private buildHostTitle(base: string, hostname: string): string {
+    return hostname ? `${base}@${hostname}` : base;
   }
 
   private buildCardPreview(input: {
@@ -77,7 +147,7 @@ export class PreviewService {
     iconKey?: string | undefined;
     sourceUrl: string;
   }): FeishuCardPreview {
-    const markdownText = input.text === " " ? "个性签名预览" : input.text;
+    const markdownText = input.text === ZERO_WIDTH_SPACE ? "个性签名预览" : input.text;
 
     return {
       type: "raw",

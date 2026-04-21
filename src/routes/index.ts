@@ -1,7 +1,7 @@
 import type { FastifyPluginAsync } from "fastify";
 
 import { config } from "../config.js";
-import { normalizeJumpUrl } from "../lib/url.js";
+import { buildEditorUrl, normalizeJumpUrl } from "../lib/url.js";
 import { escapeHtml } from "../utils/text.js";
 import { rootQuerySchema } from "../utils/validation.js";
 
@@ -182,8 +182,15 @@ export const indexRoute: FastifyPluginAsync = async (app) => {
     const query = rootQuerySchema.safeParse(request.query);
 
     if (query.success) {
-      const jumpUrl = normalizeJumpUrl(query.data.u, config.helpUrl);
-      if (query.data.u && jumpUrl !== config.helpUrl) {
+      const isSignatureLink = Boolean(query.data.t || query.data.k || query.data.slot || query.data.u);
+
+      if (isSignatureLink) {
+        const fallbackUrl = buildEditorUrl(config.publicBaseUrl, {
+          t: query.data.t,
+          k: query.data.k,
+          slot: query.data.slot,
+        });
+        const jumpUrl = normalizeJumpUrl(query.data.u, fallbackUrl);
         return reply.redirect(jumpUrl, 302);
       }
     }

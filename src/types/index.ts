@@ -43,7 +43,7 @@ export interface FeishuInlinePreview {
   title: string;
   i18n_title?: Record<string, string> | undefined;
   image_key?: string | undefined;
-  url: FeishuMultiUrl;
+  url?: FeishuMultiUrl | undefined;
 }
 
 export interface FeishuCardPreview {
