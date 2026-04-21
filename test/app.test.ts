@@ -61,7 +61,7 @@ test("GET / redirects signature links to editor when u is missing", async () => 
   }
 });
 
-test("GET /editor returns the self-service editor page", async () => {
+test("GET /editor returns the self-service editor page with icon picker", async () => {
   const app = await buildApp();
 
   try {
@@ -73,6 +73,8 @@ test("GET /editor returns the self-service editor page", async () => {
     assert.equal(response.statusCode, 200);
     assert.match(response.headers["content-type"] ?? "", /text\/html/);
     assert.match(response.body, /飞书签名设置器/);
+    assert.match(response.body, /小表情图标/);
+    assert.match(response.body, /img_v3_02e1_cf42a888-b257-4f5a-9ad7-22317623e75g/);
     assert.match(response.body, /current_task/);
   } finally {
     await app.close();

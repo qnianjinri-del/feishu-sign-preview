@@ -2,7 +2,17 @@ import type { FastifyPluginAsync } from "fastify";
 
 import { config } from "../config.js";
 import { buildBitableAppUrl, buildEditorUrl } from "../lib/url.js";
+import { IconService } from "../services/icon-service.js";
 import { rootQuerySchema } from "../utils/validation.js";
+
+const iconService = new IconService();
+
+function serializeForScript(value: unknown): string {
+  return JSON.stringify(value)
+    .replace(/</g, "\\u003c")
+    .replace(/>/g, "\\u003e")
+    .replace(/&/g, "\\u0026");
+}
 
 function renderEditorPage(initialQuery: Record<string, string | undefined>) {
   const previewBaseUrl = config.publicBaseUrl;
@@ -18,8 +28,12 @@ function renderEditorPage(initialQuery: Record<string, string | undefined>) {
     previewBaseUrl,
     editorBaseUrl,
     defaultBitableUrl,
+    defaultIconKey: iconService.getDefaultEditorIconKey(),
+    iconCatalog: iconService.getEditorCatalog(),
     initialQuery,
   };
+
+  const appConfigJson = serializeForScript(appConfig);
 
   return `<!doctype html>
 <html lang="zh-CN">
@@ -33,6 +47,7 @@ function renderEditorPage(initialQuery: Record<string, string | undefined>) {
         --bg: #eef4fb;
         --panel: #ffffff;
         --panel-soft: #f7faff;
+        --panel-strong: #eef4ff;
         --ink: #16233a;
         --muted: #657388;
         --line: rgba(22, 35, 58, 0.12);
@@ -52,7 +67,7 @@ function renderEditorPage(initialQuery: Record<string, string | undefined>) {
           linear-gradient(180deg, #f5f8fc 0%, #edf3fb 100%);
       }
       .shell {
-        max-width: 1320px;
+        max-width: 1380px;
         margin: 0 auto;
         padding: 24px;
       }
@@ -71,6 +86,7 @@ function renderEditorPage(initialQuery: Record<string, string | undefined>) {
       .subtitle {
         color: var(--muted);
         margin-top: 4px;
+        line-height: 1.7;
       }
       .link {
         color: var(--accent);
@@ -79,7 +95,7 @@ function renderEditorPage(initialQuery: Record<string, string | undefined>) {
       }
       .layout {
         display: grid;
-        grid-template-columns: minmax(0, 1.2fr) 380px;
+        grid-template-columns: minmax(0, 1.3fr) 380px;
         gap: 22px;
       }
       .panel {
@@ -115,7 +131,7 @@ function renderEditorPage(initialQuery: Record<string, string | undefined>) {
       }
       .grid {
         display: grid;
-        gap: 16px;
+        gap: 18px;
       }
       .field {
         display: grid;
@@ -127,7 +143,7 @@ function renderEditorPage(initialQuery: Record<string, string | undefined>) {
       .hint {
         color: var(--muted);
         font-size: 13px;
-        line-height: 1.6;
+        line-height: 1.7;
       }
       input[type="text"], textarea {
         width: 100%;
@@ -145,6 +161,11 @@ function renderEditorPage(initialQuery: Record<string, string | undefined>) {
       .row {
         display: flex;
         flex-wrap: wrap;
+        gap: 10px;
+      }
+      .toolbar-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
         gap: 10px;
       }
       .button {
@@ -178,6 +199,86 @@ function renderEditorPage(initialQuery: Record<string, string | undefined>) {
         border-radius: 16px;
         background: linear-gradient(180deg, #f7faff 0%, #eef4ff 100%);
         border: 1px solid rgba(47, 109, 246, 0.16);
+      }
+      .selected-icon {
+        display: grid;
+        grid-template-columns: 56px minmax(0, 1fr);
+        gap: 12px;
+        align-items: center;
+        padding: 12px;
+        border-radius: 16px;
+        background: linear-gradient(180deg, #f7faff 0%, #eef4ff 100%);
+        border: 1px solid rgba(47, 109, 246, 0.16);
+      }
+      .selected-icon img {
+        width: 56px;
+        height: 56px;
+        border-radius: 14px;
+        object-fit: contain;
+        background: rgba(47, 109, 246, 0.08);
+        padding: 8px;
+      }
+      .selected-icon strong {
+        display: block;
+        font-size: 15px;
+      }
+      .selected-icon code {
+        display: block;
+        margin-top: 4px;
+        color: var(--muted);
+        font-size: 12px;
+        word-break: break-all;
+      }
+      .icon-panel {
+        border: 1px solid rgba(47, 109, 246, 0.16);
+        border-radius: 18px;
+        background: linear-gradient(180deg, #fcfdff 0%, #f4f8ff 100%);
+        padding: 14px;
+      }
+      .icon-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+        gap: 10px;
+        margin-top: 12px;
+        max-height: 480px;
+        overflow: auto;
+        padding-right: 4px;
+      }
+      .icon-card {
+        border: 1px solid rgba(22, 35, 58, 0.10);
+        background: #fff;
+        border-radius: 16px;
+        padding: 8px;
+        cursor: pointer;
+        display: grid;
+        gap: 6px;
+        justify-items: center;
+        transition: transform 120ms ease, box-shadow 120ms ease, border-color 120ms ease;
+      }
+      .icon-card:hover {
+        transform: translateY(-1px);
+        border-color: rgba(47, 109, 246, 0.34);
+        box-shadow: 0 10px 18px rgba(47, 109, 246, 0.12);
+      }
+      .icon-card.active {
+        border-color: rgba(47, 109, 246, 0.72);
+        box-shadow: 0 12px 22px rgba(47, 109, 246, 0.18);
+        background: #eef4ff;
+      }
+      .icon-card img {
+        width: 34px;
+        height: 34px;
+        object-fit: contain;
+      }
+      .icon-card span {
+        width: 100%;
+        font-size: 11px;
+        line-height: 1.3;
+        text-align: center;
+        color: var(--muted);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
       .preview {
         overflow: hidden;
@@ -266,6 +367,9 @@ function renderEditorPage(initialQuery: Record<string, string | undefined>) {
         .preview-name {
           font-size: 28px;
         }
+        .toolbar-row {
+          grid-template-columns: 1fr;
+        }
       }
     </style>
   </head>
@@ -274,7 +378,7 @@ function renderEditorPage(initialQuery: Record<string, string | undefined>) {
       <div class="topbar">
         <div>
           <div class="title">飞书签名设置器</div>
-          <div class="subtitle">参考原版编辑器思路，做一个你自己也能维护的轻量设置页。改完后复制新链接到飞书签名里即可。</div>
+          <div class="subtitle">这里生成的签名链接会自动编码，更适合直接贴到飞书个性签名里。你也可以直接点选小表情，不用再手填 <code>image_key</code>。</div>
         </div>
         <a class="link" href="/">返回说明页</a>
       </div>
@@ -290,12 +394,12 @@ function renderEditorPage(initialQuery: Record<string, string | undefined>) {
             <div class="field" id="text-field">
               <label for="text-input">外显文案</label>
               <textarea id="text-input" placeholder="例如：你好呀~"></textarea>
-              <div class="hint">这里填你希望飞书里直接显示的文案。</div>
+              <div class="hint">这里填你希望飞书里直接显示的文字。如果同时勾选当前任务兜底，只有当你不填文案时才会去读多维表格。</div>
             </div>
 
             <div class="field">
               <label for="jump-input">点击跳转</label>
-              <input id="jump-input" type="text" placeholder="https:// 开头，不填时默认跳到设置页" />
+              <input id="jump-input" type="text" placeholder="https:// 开头，不填时默认跳回设置页" />
               <div class="hint">如果这里不填，点击签名时会自动打开当前设置页，方便你继续修改。</div>
             </div>
 
@@ -305,9 +409,32 @@ function renderEditorPage(initialQuery: Record<string, string | undefined>) {
             </div>
 
             <div class="field">
-              <label for="icon-input">图标 key</label>
-              <input id="icon-input" type="text" placeholder="可选，飞书 image_key" />
-              <div class="hint">不填则使用飞书默认链接图标。</div>
+              <label>小表情图标</label>
+              <div class="hint">签名场景建议保留图标，更稳。下面可以直接点图选择，编辑器会自动把对应的 <code>k</code> 参数带进链接里。</div>
+
+              <div class="selected-icon">
+                <img id="selected-icon-thumb" alt="已选图标" />
+                <div>
+                  <strong id="selected-icon-name">默认表情</strong>
+                  <code id="selected-icon-key"></code>
+                </div>
+              </div>
+
+              <div class="icon-panel">
+                <div class="toolbar-row">
+                  <input id="icon-search" type="text" placeholder="搜索表情名或 image_key" />
+                  <button class="button ghost" type="button" id="reset-icon">恢复默认表情</button>
+                </div>
+                <div class="hint" id="icon-stats"></div>
+                <div class="icon-grid" id="icon-grid"></div>
+                <div class="row">
+                  <button class="button ghost" type="button" id="load-more-icons">加载更多表情</button>
+                </div>
+              </div>
+
+              <label for="icon-input">高级模式：图标 key</label>
+              <input id="icon-input" type="text" placeholder="也可以直接粘贴自定义 image_key" />
+              <div class="hint">如果你已经有自己的飞书图片 key，也可以直接粘贴覆盖当前选择。</div>
             </div>
 
             <label class="checkbox" id="slot-fallback-row">
@@ -317,13 +444,13 @@ function renderEditorPage(initialQuery: Record<string, string | undefined>) {
 
             <div class="readonly" id="slot-readonly" hidden>
               <strong>当前任务模式</strong>
-              <div class="hint">会读取多维表格指定视图里“任务状态 = 在干”的第一条记录，把“任务名”显示成签名文案。</div>
+              <div class="hint">会读取多维表格指定视图里“任务状态 = 在干”的第一条记录，把“任务名”显示成签名文字。</div>
             </div>
 
             <div class="field">
               <label for="link-output">签名链接</label>
               <textarea id="link-output" readonly></textarea>
-              <div class="hint">把这里生成的链接复制到飞书签名里即可。后续要改内容，重新打开设置页调整并复制新的链接。</div>
+              <div class="hint">把这里生成的链接复制到飞书签名里即可。后续想改内容，重新打开这个设置页调整并复制新的链接。</div>
             </div>
 
             <div class="row">
@@ -351,7 +478,7 @@ function renderEditorPage(initialQuery: Record<string, string | undefined>) {
             </div>
 
             <div class="footer-note">
-              原理不变：编辑页只负责生成链接，真正显示在飞书里的还是当前服务返回的链接预览。
+              原理不变：编辑器只负责生成链接，真正显示在飞书里的还是当前服务返回的链接预览。为了让签名更稳，这里默认会带上一个图标。
             </div>
           </div>
         </aside>
@@ -359,14 +486,11 @@ function renderEditorPage(initialQuery: Record<string, string | undefined>) {
     </div>
 
     <script>
-      const APP_CONFIG = ${JSON.stringify(appConfig)};
+      const APP_CONFIG = ${appConfigJson};
 
       const state = {
         mode: "single",
-        text: "",
-        iconKey: "",
-        jumpUrl: "",
-        slotFallback: false,
+        visibleIconCount: 120,
       };
 
       const modeButtons = Array.from(document.querySelectorAll(".tab"));
@@ -374,6 +498,14 @@ function renderEditorPage(initialQuery: Record<string, string | undefined>) {
       const textInput = document.getElementById("text-input");
       const jumpInput = document.getElementById("jump-input");
       const iconInput = document.getElementById("icon-input");
+      const iconSearch = document.getElementById("icon-search");
+      const iconGrid = document.getElementById("icon-grid");
+      const iconStats = document.getElementById("icon-stats");
+      const loadMoreIcons = document.getElementById("load-more-icons");
+      const resetIcon = document.getElementById("reset-icon");
+      const selectedIconThumb = document.getElementById("selected-icon-thumb");
+      const selectedIconName = document.getElementById("selected-icon-name");
+      const selectedIconKey = document.getElementById("selected-icon-key");
       const slotFallback = document.getElementById("slot-fallback");
       const slotFallbackRow = document.getElementById("slot-fallback-row");
       const slotReadonly = document.getElementById("slot-readonly");
@@ -390,20 +522,25 @@ function renderEditorPage(initialQuery: Record<string, string | undefined>) {
       let pendingController = null;
       let debounceTimer = null;
 
+      function escapeHtml(value) {
+        return String(value)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#39;");
+      }
+
       function hydrateFromQuery() {
         const query = APP_CONFIG.initialQuery || {};
         const hasManualText = Boolean(query.t);
         const hasSlot = query.slot === "current_task";
-        state.mode = hasSlot && !hasManualText ? "current_task" : "single";
-        state.text = query.t || "";
-        state.iconKey = query.k || "";
-        state.jumpUrl = query.u || "";
-        state.slotFallback = hasSlot && hasManualText;
 
-        textInput.value = state.text;
-        iconInput.value = state.iconKey;
-        jumpInput.value = state.jumpUrl;
-        slotFallback.checked = state.slotFallback;
+        state.mode = hasSlot && !hasManualText ? "current_task" : "single";
+        textInput.value = query.t || "";
+        iconInput.value = query.k || APP_CONFIG.defaultIconKey || "";
+        jumpInput.value = query.u || "";
+        slotFallback.checked = hasSlot && hasManualText;
       }
 
       function setMode(mode) {
@@ -455,6 +592,57 @@ function renderEditorPage(initialQuery: Record<string, string | undefined>) {
         window.history.replaceState({}, "", editorUrl);
       }
 
+      function findSelectedIcon() {
+        const currentKey = iconInput.value.trim();
+        return APP_CONFIG.iconCatalog.find((item) => item.key === currentKey);
+      }
+
+      function renderSelectedIcon() {
+        const currentKey = iconInput.value.trim();
+        const selected = findSelectedIcon();
+
+        if (selected) {
+          selectedIconThumb.src = selected.imageUrl;
+          selectedIconThumb.alt = selected.label;
+          selectedIconName.textContent = selected.label;
+          selectedIconKey.textContent = selected.key;
+          return;
+        }
+
+        selectedIconThumb.removeAttribute("src");
+        selectedIconThumb.alt = "";
+        selectedIconName.textContent = currentKey ? "自定义图标" : "未选择图标";
+        selectedIconKey.textContent = currentKey || "建议签名场景保留一个图标";
+      }
+
+      function renderIconGrid() {
+        const term = iconSearch.value.trim().toLowerCase();
+        const filtered = term
+          ? APP_CONFIG.iconCatalog.filter((item) => item.keywords.includes(term))
+          : APP_CONFIG.iconCatalog;
+        const visibleCount = term ? Math.max(180, state.visibleIconCount) : state.visibleIconCount;
+        const visibleItems = filtered.slice(0, visibleCount);
+        const selectedKey = iconInput.value.trim();
+
+        iconGrid.innerHTML = visibleItems
+          .map((item) => {
+            const isActive = item.key === selectedKey;
+            return \`<button class="icon-card \${isActive ? "active" : ""}" type="button" data-icon-key="\${escapeHtml(item.key)}" title="\${escapeHtml(item.label)}">
+              <img loading="lazy" src="\${escapeHtml(item.imageUrl)}" alt="\${escapeHtml(item.label)}" referrerpolicy="no-referrer" />
+              <span>\${escapeHtml(item.label)}</span>
+            </button>\`;
+          })
+          .join("");
+
+        if (term) {
+          iconStats.textContent = \`共找到 \${filtered.length} 个表情，当前显示 \${visibleItems.length} 个。\`;
+        } else {
+          iconStats.textContent = \`已显示 \${visibleItems.length} / \${APP_CONFIG.iconCatalog.length} 个表情。\`;
+        }
+
+        loadMoreIcons.hidden = visibleItems.length >= filtered.length;
+      }
+
       async function fetchPreview(params) {
         if (pendingController) {
           pendingController.abort();
@@ -476,6 +664,8 @@ function renderEditorPage(initialQuery: Record<string, string | undefined>) {
         openPreview.onclick = () => window.open(previewUrl, "_blank", "noopener,noreferrer");
         openEditorLink.onclick = () => window.open(editorUrl, "_blank", "noopener,noreferrer");
         syncEditorLocation(editorUrl);
+        renderSelectedIcon();
+        renderIconGrid();
 
         clearTimeout(debounceTimer);
         debounceTimer = setTimeout(async () => {
@@ -483,7 +673,7 @@ function renderEditorPage(initialQuery: Record<string, string | undefined>) {
             const payload = await fetchPreview(params);
             const resolved = payload.resolved || {};
             const jumpUrl = resolved.jumpUrl || editorUrl;
-            const title = resolved.text && resolved.text !== " " ? resolved.text : "单个空格占位";
+            const title = resolved.text && resolved.text !== "\\u200b" ? resolved.text : "零宽占位字符";
             previewLink.textContent = title;
             previewLink.href = jumpUrl;
             previewMeta.textContent = \`点击后跳转到：\${jumpUrl}\`;
@@ -507,6 +697,31 @@ function renderEditorPage(initialQuery: Record<string, string | undefined>) {
       jumpInput.addEventListener("input", update);
       iconInput.addEventListener("input", update);
       slotFallback.addEventListener("change", update);
+
+      iconSearch.addEventListener("input", () => {
+        state.visibleIconCount = 120;
+        renderIconGrid();
+      });
+
+      iconGrid.addEventListener("click", (event) => {
+        const target = event.target.closest("[data-icon-key]");
+        if (!target) {
+          return;
+        }
+
+        iconInput.value = target.dataset.iconKey || "";
+        update();
+      });
+
+      loadMoreIcons.addEventListener("click", () => {
+        state.visibleIconCount += 120;
+        renderIconGrid();
+      });
+
+      resetIcon.addEventListener("click", () => {
+        iconInput.value = APP_CONFIG.defaultIconKey || "";
+        update();
+      });
 
       copyLink.addEventListener("click", async () => {
         try {
