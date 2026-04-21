@@ -4,6 +4,7 @@ import { pathToFileURL } from "node:url";
 import { config } from "./config.js";
 import { createLoggerOptions } from "./lib/logger.js";
 import { createDebugRoute } from "./routes/debug.js";
+import { editorRoute } from "./routes/editor.js";
 import { createHandlerRoute } from "./routes/handler.js";
 import { indexRoute } from "./routes/index.js";
 import { PreviewService } from "./services/preview-service.js";
@@ -23,6 +24,7 @@ export async function buildApp() {
   });
 
   await app.register(indexRoute);
+  await app.register(editorRoute);
   await app.register(createDebugRoute(previewService));
   await app.register(createHandlerRoute(previewService));
 

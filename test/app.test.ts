@@ -45,6 +45,24 @@ test("GET / redirects when u is valid", async () => {
   }
 });
 
+test("GET /editor returns the self-service editor page", async () => {
+  const app = await buildApp();
+
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/editor?t=%E4%BD%A0%E5%A5%BD%E5%91%80~&slot=current_task",
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.match(response.headers["content-type"] ?? "", /text\/html/);
+    assert.match(response.body, /飞书签名设置器/);
+    assert.match(response.body, /current_task/);
+  } finally {
+    await app.close();
+  }
+});
+
 test("GET /api/debug/preview returns resolved preview payload", async () => {
   const app = await buildApp();
 

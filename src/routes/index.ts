@@ -10,13 +10,14 @@ function renderLandingPage() {
   const pureText = `${exampleBase}/?t=${encodeURIComponent("你好呀~")}`;
   const imageText = `${exampleBase}/?k=img_v3_xxx&t=${encodeURIComponent("你好呀~")}`;
   const imageTextLink = `${exampleBase}/?k=img_v3_xxx&t=${encodeURIComponent("你好呀~")}&u=${encodeURIComponent("https://open.feishu.cn")}`;
+  const currentTask = `${exampleBase}/?slot=current_task`;
 
   return `<!doctype html>
 <html lang="zh-CN">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>飞书个性签名 / 链接预览服务</title>
+    <title>飞书个性签名 / 自定义链接预览服务</title>
     <style>
       :root {
         color-scheme: light;
@@ -25,7 +26,7 @@ function renderLandingPage() {
         --ink: #132238;
         --muted: #5e6a7d;
         --accent: #0d7c66;
-        --accent-2: #d95f43;
+        --accent-2: #2f6df6;
         --line: rgba(19,34,56,0.12);
       }
       * { box-sizing: border-box; }
@@ -35,11 +36,11 @@ function renderLandingPage() {
         color: var(--ink);
         background:
           radial-gradient(circle at top left, rgba(13,124,102,0.22), transparent 28%),
-          radial-gradient(circle at 85% 15%, rgba(217,95,67,0.18), transparent 24%),
+          radial-gradient(circle at 85% 15%, rgba(47,109,246,0.18), transparent 24%),
           linear-gradient(160deg, #f7f3ea 0%, #ece7de 48%, #e5edf0 100%);
       }
       main {
-        max-width: 980px;
+        max-width: 1100px;
         margin: 0 auto;
         padding: 48px 20px 64px;
       }
@@ -71,6 +72,30 @@ function renderLandingPage() {
       p {
         color: var(--muted);
         line-height: 1.7;
+      }
+      .row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-top: 20px;
+      }
+      .button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 12px 18px;
+        border-radius: 14px;
+        text-decoration: none;
+        font-weight: 800;
+      }
+      .button.primary {
+        background: var(--accent-2);
+        color: #fff;
+      }
+      .button.secondary {
+        border: 1px solid var(--line);
+        color: var(--ink);
+        background: rgba(255,255,255,0.74);
       }
       .grid {
         display: grid;
@@ -107,11 +132,6 @@ function renderLandingPage() {
         white-space: pre-wrap;
         word-break: break-all;
       }
-      .accent {
-        color: var(--accent-2);
-        font-weight: 700;
-      }
-      a { color: inherit; }
     </style>
   </head>
   <body>
@@ -119,23 +139,28 @@ function renderLandingPage() {
       <section class="hero">
         <div class="badge">Feishu Link Preview MVP</div>
         <h1>飞书个性签名 / 自定义链接预览服务</h1>
-        <p>这套玩法基于飞书的 <span class="accent">链接预览</span> 回调能力：命中 URL 规则后，飞书会向 <code>/api/handler</code> 拉取预览数据，再把普通链接渲染成图标 + 文字的签名样式。</p>
+        <p>这套玩法基于飞书的链接预览回调能力。现在已经内置一个自助设置页，你后续改外显文案、切换到当前任务模式、修改点击跳转，都可以自己在编辑页完成。</p>
+        <div class="row">
+          <a class="button primary" href="/editor">打开设置页</a>
+          <a class="button secondary" href="/api/debug/preview?slot=current_task">查看当前任务调试结果</a>
+        </div>
+
         <div class="grid">
           <article class="card">
             <h2>参数说明</h2>
             <ul>
               <li><code>t</code>：显示文案，缺省时回退为单个空格。</li>
               <li><code>k</code>：飞书图片 <code>image_key</code>，缺省时使用默认链接图标。</li>
-              <li><code>u</code>：点击跳转地址，未传或非法时回退到帮助页。</li>
+              <li><code>u</code>：点击跳转地址，不填时默认跳到设置页。</li>
+              <li><code>slot=current_task</code>：从多维表格读取“当前任务”。</li>
             </ul>
           </article>
           <article class="card">
-            <h2>飞书后台配置</h2>
+            <h2>推荐入口</h2>
             <ul>
-              <li>创建企业自建应用并启用“链接预览”能力。</li>
-              <li>URL 规则填写 <code>${escapeHtml(new URL(config.publicBaseUrl).host)}/**</code>。</li>
-              <li>事件回调地址配置为 <code>${escapeHtml(config.publicBaseUrl)}/api/handler</code>。</li>
-              <li>勾选“拉取链接预览数据”，发布版本并将可用范围设为全部成员。</li>
+              <li>想自己改签名：打开 <a href="/editor">/editor</a></li>
+              <li>想测试当前任务：访问 <code>${escapeHtml(currentTask)}</code></li>
+              <li>没设置 <code>u</code> 时，点击签名会自动回到设置页。</li>
             </ul>
           </article>
           <article class="card">
@@ -143,14 +168,7 @@ function renderLandingPage() {
             <pre>${escapeHtml(pureText)}</pre>
             <pre>${escapeHtml(imageText)}</pre>
             <pre>${escapeHtml(imageTextLink)}</pre>
-          </article>
-          <article class="card">
-            <h2>图标建议</h2>
-            <ul>
-              <li>透明背景、纯白主体、尽量小体积。</li>
-              <li>GIF / APNG 桌面端可动，移动端通常只显示首帧。</li>
-              <li>本服务不依赖公共海外服务，适合私有部署。</li>
-            </ul>
+            <pre>${escapeHtml(currentTask)}</pre>
           </article>
         </div>
       </section>

@@ -1,10 +1,5 @@
 import type { AppConfig } from "../config.js";
-import {
-  buildSourceUrlFromParams,
-  normalizeJumpUrl,
-  parsePreviewParamsFromUrl,
-  toMultiUrl,
-} from "../lib/url.js";
+import { buildEditorUrl, buildSourceUrlFromParams, isSafeRedirectUrl, toMultiUrl } from "../lib/url.js";
 import type {
   FeishuCardPreview,
   PreviewBuildResult,
@@ -26,6 +21,7 @@ export class PreviewService {
   ) {}
 
   async buildFromSourceUrl(sourceUrl: string, context: PreviewContext): Promise<PreviewBuildResult> {
+    const { parsePreviewParamsFromUrl } = await import("../lib/url.js");
     const params = parsePreviewParamsFromUrl(sourceUrl);
     return this.buildFromParams(params, context, sourceUrl);
   }
@@ -40,7 +36,13 @@ export class PreviewService {
     const resolvedText = await this.variableService.resolveText(candidateText ?? " ", context);
     const text = normalizePreviewText(resolvedText, this.appConfig.maxTextLength);
     const iconKey = this.iconService.resolveIconKey(params.k);
-    const jumpUrl = normalizeJumpUrl(params.u, this.appConfig.defaultJumpUrl);
+    const jumpUrl = isSafeRedirectUrl(params.u ?? "")
+      ? (params.u as string)
+      : buildEditorUrl(this.appConfig.publicBaseUrl, {
+          t: params.t,
+          k: params.k,
+          slot: params.slot,
+        });
 
     const card = this.appConfig.enableCardPreview
       ? this.buildCardPreview({ text, jumpUrl, iconKey, sourceUrl })

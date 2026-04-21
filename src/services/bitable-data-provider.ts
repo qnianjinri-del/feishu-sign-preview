@@ -208,7 +208,8 @@ export class BitableDataProvider implements DataProvider {
     });
     const data = getDataRecord(payload);
 
-    const token = getString((payload as Record<string, unknown>).tenant_access_token) ?? getString(data?.tenant_access_token);
+    const token =
+      getString((payload as Record<string, unknown>).tenant_access_token) ?? getString(data?.tenant_access_token);
 
     if (!token) {
       throw new Error("tenant_access_token is missing from Feishu auth response.");
@@ -288,7 +289,9 @@ export class BitableDataProvider implements DataProvider {
       if (!response.ok) {
         const code = typeof payload.code === "number" ? payload.code : "unknown";
         const message = getString(payload.msg) ?? response.statusText;
-        throw new Error(`Feishu API request failed with ${response.status} ${response.statusText}. code=${code}, msg=${message}`);
+        throw new Error(
+          `Feishu API request failed with ${response.status} ${response.statusText}. code=${code}, msg=${message}`,
+        );
       }
 
       const code = payload.code;

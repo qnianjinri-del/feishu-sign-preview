@@ -29,7 +29,7 @@ export function normalizePreviewText(value: string | undefined, maxLength: numbe
     return flattened;
   }
 
-  return `${flattened.slice(0, Math.max(1, maxLength - 1))}…`;
+  return `${flattened.slice(0, Math.max(1, maxLength - 3))}...`;
 }
 
 export function escapeHtml(value: string): string {

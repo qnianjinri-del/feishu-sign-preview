@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { AppConfig } from "../src/config.ts";
-import { parsePreviewParamsFromUrl } from "../src/lib/url.ts";
+import { buildEditorUrl, parsePreviewParamsFromUrl } from "../src/lib/url.ts";
 import { PreviewService } from "../src/services/preview-service.ts";
 
 const testConfig: AppConfig = {
@@ -52,7 +52,7 @@ test("PreviewService falls back to a single space when text is missing", async (
   assert.equal(preview.response.inline.title, " ");
 });
 
-test("PreviewService blocks invalid redirect urls", async () => {
+test("PreviewService falls back to the editor when redirect url is invalid", async () => {
   const previewService = new PreviewService(testConfig);
   const preview = await previewService.buildFromParams(
     {
@@ -62,8 +62,9 @@ test("PreviewService blocks invalid redirect urls", async () => {
     { sourceUrl: testConfig.publicBaseUrl },
   );
 
-  assert.equal(preview.jumpUrl, testConfig.defaultJumpUrl);
-  assert.equal(preview.response.inline.url.web, testConfig.defaultJumpUrl);
+  const expected = buildEditorUrl(testConfig.publicBaseUrl, { t: "hello" });
+  assert.equal(preview.jumpUrl, expected);
+  assert.equal(preview.response.inline.url.web, expected);
 });
 
 test("PreviewService keeps t as the primary text and treats slot as fallback", async () => {

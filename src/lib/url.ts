@@ -26,10 +26,10 @@ function isBlockedIpv4(hostname: string): boolean {
     a === 0 ||
     a === 10 ||
     a === 127 ||
-    a === 169 && b === 254 ||
-    a === 172 && b >= 16 && b <= 31 ||
-    a === 192 && b === 168 ||
-    a === 100 && b >= 64 && b <= 127
+    (a === 169 && b === 254) ||
+    (a === 172 && b >= 16 && b <= 31) ||
+    (a === 192 && b === 168) ||
+    (a === 100 && b >= 64 && b <= 127)
   );
 }
 
@@ -64,6 +64,25 @@ export function buildSourceUrlFromParams(baseUrl: string, input: PreviewParamsIn
       url.searchParams.set(key, value);
     }
   }
+  return url.toString();
+}
+
+export function buildEditorUrl(baseUrl: string, input: PreviewParamsInput): string {
+  const url = new URL("/editor", `${baseUrl}/`);
+  for (const [key, value] of Object.entries(input)) {
+    if (value) {
+      url.searchParams.set(key, value);
+    }
+  }
+  return url.toString();
+}
+
+export function buildBitableAppUrl(baseUrl: string, appToken: string, tableId: string, viewId: string): string {
+  const origin = new URL(baseUrl);
+  const host = origin.hostname.includes("feishu") ? origin.origin : "https://feishu.cn";
+  const url = new URL(`/base/${appToken}`, host);
+  url.searchParams.set("table", tableId);
+  url.searchParams.set("view", viewId);
   return url.toString();
 }
 
