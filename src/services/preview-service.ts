@@ -35,7 +35,7 @@ export class PreviewService {
     context: PreviewContext,
     sourceUrl = buildSourceUrlFromParams(this.appConfig.publicBaseUrl, params),
   ): Promise<PreviewBuildResult> {
-    const slotValue = await this.slotService.resolve(params.slot, context);
+    const slotValue = params.t ? undefined : await this.slotService.resolve(params.slot, context);
     const candidateText = params.t ?? slotValue;
     const resolvedText = await this.variableService.resolveText(candidateText ?? " ", context);
     const text = normalizePreviewText(resolvedText, this.appConfig.maxTextLength);

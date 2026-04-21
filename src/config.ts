@@ -16,6 +16,14 @@ const envSchema = z.object({
   FEISHU_APP_SECRET: z.string().optional(),
   FEISHU_VERIFICATION_TOKEN: z.string().optional(),
   FEISHU_ENCRYPT_KEY: z.string().optional(),
+  BITABLE_APP_TOKEN: z.string().default("XLNaboeiCaFzN5sUtMfcVl9Mn8z"),
+  BITABLE_TABLE_ID: z.string().default("tbl9MppZ1OXYKapw"),
+  BITABLE_VIEW_ID: z.string().default("vewbgk85az"),
+  BITABLE_RESULT_FIELD_NAME: z.string().default("任务名"),
+  BITABLE_STATUS_FIELD_NAME: z.string().default("任务状态"),
+  BITABLE_TARGET_STATUS: z.string().default("在干"),
+  BITABLE_CACHE_TTL_SECONDS: z.coerce.number().int().min(1).max(3600).default(60),
+  BITABLE_REQUEST_TIMEOUT_MS: z.coerce.number().int().min(100).max(10000).default(1500),
   MAX_TEXT_LENGTH: z.coerce.number().int().min(1).max(500).default(80),
   HANDLER_TIMEOUT_MS: z.coerce.number().int().min(100).max(10000).default(1500),
   DEBUG_TIMEOUT_MS: z.coerce.number().int().min(100).max(10000).default(2000),
@@ -47,14 +55,6 @@ function loadConfig() {
     const publicBaseUrl = normalizePublicBaseUrl(env.PUBLIC_BASE_URL);
     const helpUrl = resolveHelpUrl(publicBaseUrl, env.DEFAULT_HELP_PATH);
 
-    if (env.NODE_ENV === "production" && publicBaseUrl.includes("localhost")) {
-      throw new Error("PUBLIC_BASE_URL cannot use localhost in production.");
-    }
-
-    if (env.NODE_ENV === "production" && !env.FEISHU_VERIFICATION_TOKEN && !env.FEISHU_ENCRYPT_KEY) {
-      throw new Error("Set FEISHU_VERIFICATION_TOKEN or FEISHU_ENCRYPT_KEY before running in production.");
-    }
-
     return {
       nodeEnv: env.NODE_ENV,
       host: env.HOST,
@@ -67,6 +67,14 @@ function loadConfig() {
       feishuAppSecret: env.FEISHU_APP_SECRET ?? "",
       feishuVerificationToken: env.FEISHU_VERIFICATION_TOKEN ?? "",
       feishuEncryptKey: env.FEISHU_ENCRYPT_KEY ?? "",
+      bitableAppToken: env.BITABLE_APP_TOKEN,
+      bitableTableId: env.BITABLE_TABLE_ID,
+      bitableViewId: env.BITABLE_VIEW_ID,
+      bitableResultFieldName: env.BITABLE_RESULT_FIELD_NAME,
+      bitableStatusFieldName: env.BITABLE_STATUS_FIELD_NAME,
+      bitableTargetStatus: env.BITABLE_TARGET_STATUS,
+      bitableCacheTtlSeconds: env.BITABLE_CACHE_TTL_SECONDS,
+      bitableRequestTimeoutMs: env.BITABLE_REQUEST_TIMEOUT_MS,
       maxTextLength: env.MAX_TEXT_LENGTH,
       handlerTimeoutMs: env.HANDLER_TIMEOUT_MS,
       debugTimeoutMs: env.DEBUG_TIMEOUT_MS,

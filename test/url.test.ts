@@ -17,6 +17,14 @@ const testConfig: AppConfig = {
   feishuAppSecret: "",
   feishuVerificationToken: "",
   feishuEncryptKey: "",
+  bitableAppToken: "XLNaboeiCaFzN5sUtMfcVl9Mn8z",
+  bitableTableId: "tbl9MppZ1OXYKapw",
+  bitableViewId: "vewbgk85az",
+  bitableResultFieldName: "任务名",
+  bitableStatusFieldName: "任务状态",
+  bitableTargetStatus: "在干",
+  bitableCacheTtlSeconds: 60,
+  bitableRequestTimeoutMs: 1500,
   maxTextLength: 80,
   handlerTimeoutMs: 1500,
   debugTimeoutMs: 2000,
@@ -56,4 +64,30 @@ test("PreviewService blocks invalid redirect urls", async () => {
 
   assert.equal(preview.jumpUrl, testConfig.defaultJumpUrl);
   assert.equal(preview.response.inline.url.web, testConfig.defaultJumpUrl);
+});
+
+test("PreviewService keeps t as the primary text and treats slot as fallback", async () => {
+  let slotResolveCount = 0;
+  const previewService = new PreviewService(
+    testConfig,
+    undefined,
+    undefined,
+    {
+      resolve: async () => {
+        slotResolveCount += 1;
+        return "来自 slot 的文案";
+      },
+    } as never,
+  );
+
+  const preview = await previewService.buildFromParams(
+    {
+      t: "手动文案",
+      slot: "current_task",
+    },
+    { sourceUrl: testConfig.publicBaseUrl },
+  );
+
+  assert.equal(preview.text, "手动文案");
+  assert.equal(slotResolveCount, 0);
 });

@@ -2,3 +2,6 @@ node_modules
 dist
 .env
 npm-debug.log*
+
+tmp-app.log
+tmp-app.err.log

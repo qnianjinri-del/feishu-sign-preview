@@ -1,22 +1,29 @@
 # 飞书个性签名 / 自定义链接预览系统
 
-一个可私有部署的 Feishu / 飞书链接预览服务，用来 1:1 复刻 `l.garyyang.work` 这类“图标 + 文本 + 点击跳转”的个性签名玩法，并为后续的时间变量、多维表格任务、访客名展示预留扩展接口。
+一个可私有部署的 Feishu / 飞书链接预览服务，用来 1:1 复刻 `l.garyyang.work` 这类“图标 + 文本 + 点击跳转”的个性签名玩法，并在现有 `slot` 扩展位上接入飞书多维表格数据。
 
 ## 功能范围
 
 - 基于飞书链接预览回调 `url.preview.get`
 - 支持 `t`、`k`、`u` 三个核心参数
+- 支持 `slot=current_task`
 - 支持 `POST /api/handler` 飞书回调入口
 - 支持 `GET /` 落地页与帮助页
 - 支持 `GET /api/debug/preview` 本地调试预览载荷
 - 支持 Docker / Docker Compose 私有部署
-- 预留 `slot-service`、`data-provider`、`variable-service` 扩展层
+- 预留 `variable-service` 扩展层
 
 ## 参数说明
 
 - `t`：要展示的文字内容。未传或传空字符串时，回退为单个空格 `" "`
 - `k`：飞书图片 `image_key`。未传时使用飞书默认链接图标，不能完全隐藏
 - `u`：点击跳转地址。未传或非法时回退到帮助页
+- `slot`：服务端动态槽位。当前 V2 仅实现 `slot=current_task`
+
+优先级保持不变：
+
+- `t` 优先
+- `slot` 作为文案兜底
 
 所有参数都会进行 URL 解码，并做基础安全处理：
 
@@ -47,9 +54,21 @@ https://sign.example.com/?k=img_v3_xxx&t=你好呀~
 https://sign.example.com/?k=img_v3_xxx&t=你好呀~&u=https%3A%2F%2Fopen.feishu.cn
 ```
 
+### 示例 4：从多维表格读取当前任务
+
+```text
+https://sign.example.com/?slot=current_task
+```
+
+### 示例 5：当前任务 + 自定义跳转
+
+```text
+https://sign.example.com/?slot=current_task&u=https%3A%2F%2Fopen.feishu.cn
+```
+
 ## 本地启动
 
-1. 复制 `.env.example` 为 `.env`。
+1. 复制 `.env.example` 为 `.env`
 2. 按需修改下面这些变量：
 
 ```env
@@ -58,8 +77,18 @@ HOST=0.0.0.0
 PORT=3000
 PUBLIC_BASE_URL=http://127.0.0.1:3000
 DEFAULT_JUMP_URL=http://127.0.0.1:3000/
+FEISHU_APP_ID=cli_xxx
+FEISHU_APP_SECRET=cli_secret_xxx
 FEISHU_VERIFICATION_TOKEN=your_verification_token
 FEISHU_ENCRYPT_KEY=
+BITABLE_APP_TOKEN=XLNaboeiCaFzN5sUtMfcVl9Mn8z
+BITABLE_TABLE_ID=tbl9MppZ1OXYKapw
+BITABLE_VIEW_ID=vewbgk85az
+BITABLE_RESULT_FIELD_NAME=任务名
+BITABLE_STATUS_FIELD_NAME=任务状态
+BITABLE_TARGET_STATUS=在干
+BITABLE_CACHE_TTL_SECONDS=60
+BITABLE_REQUEST_TIMEOUT_MS=1500
 HANDLER_TIMEOUT_MS=1500
 DEBUG_TIMEOUT_MS=2000
 ```
@@ -76,6 +105,7 @@ npm run dev
 ```bash
 curl http://127.0.0.1:3000/
 curl "http://127.0.0.1:3000/api/debug/preview?t=你好呀~&k=img_v3_xxx&u=https%3A%2F%2Fopen.feishu.cn"
+curl "http://127.0.0.1:3000/api/debug/preview?slot=current_task"
 ```
 
 ## Docker 启动
@@ -122,6 +152,7 @@ curl http://127.0.0.1:3000/
 
 ```bash
 curl "http://127.0.0.1:3000/api/debug/preview?t=你好呀~&k=img_v3_xxx&u=https%3A%2F%2Fopen.feishu.cn"
+curl "http://127.0.0.1:3000/api/debug/preview?slot=current_task"
 ```
 
 5. 停止服务：
@@ -132,11 +163,29 @@ docker compose down
 
 ## 飞书开放平台配置步骤
 
-1. 在飞书开放平台创建企业自建应用。
-2. 在应用能力中添加“链接预览”。
-3. 进入事件与回调配置页，准备填写 URL 规则和事件回调地址。
-4. 将应用发布为正式版本。
-5. 把可用范围设为“全部成员”。
+1. 在飞书开放平台创建企业自建应用
+2. 在应用能力中添加“链接预览”
+3. 进入事件与回调配置页，准备填写 URL 规则和事件回调地址
+4. 将应用发布为正式版本
+5. 把可用范围设为“全部成员”
+6. 如果要使用 `slot=current_task`，继续给应用开通多维表格读取相关权限
+
+## 飞书开放平台权限
+
+`slot=current_task` 依赖企业自建应用的 `tenant_access_token` 和多维表格读取能力。至少需要：
+
+- 企业自建应用的 `App ID` 与 `App Secret`
+- 多维表格记录读取相关权限
+- 多维表格表格 / 视图可访问权限
+
+按当前飞书返回的权限校验结果，至少开通以下任一组可用 scope：
+
+- `bitable:app:readonly`
+- `bitable:app`
+- `base:record:retrieve`
+
+飞书后台中权限文案可能会随版本调整，实操时以开放平台里“多维表格 / 记录读取 / 只读”相关权限名称为准。  
+如果没有授权成功，`slot=current_task` 会回退为稳定默认文案，不会让链接预览回调崩掉。
 
 ## 如何配置链接预览 URL 规则
 
@@ -193,13 +242,71 @@ https://sign.example.com/api/handler
 https://sign.example.com/?k=img_v3_xxx&t=你好呀~&u=https%3A%2F%2Fopen.feishu.cn
 ```
 
-2. 在飞书个人资料或签名设置中粘贴这个链接。
-3. 保存后重新打开个人信息页或聊天窗口查看签名。
+或：
+
+```text
+https://sign.example.com/?slot=current_task
+```
+
+2. 在飞书个人资料或签名设置中粘贴这个链接
+3. 保存后重新打开个人信息页或聊天窗口查看签名
 4. 预期结果：
-   - 显示图标和文字
-   - 点击后跳到 `u` 指定地址
-   - 如果 `k` 为空，则显示飞书默认链接图标
-   - 如果 `u` 非法，则回退到帮助页
+   - 纯参数签名显示图标和文字
+   - `slot=current_task` 会从多维表格中读取“任务状态 = 在干”的第一条记录，并显示它的“任务名”
+   - 当前表内命中数据应显示为：`进阶规划最新的作业模板`
+   - 点击后跳到 `u` 指定地址；没有 `u` 时回退到帮助页
+
+## 环境变量说明
+
+### 现有基础变量
+
+- `NODE_ENV`：运行环境
+- `HOST`：监听地址
+- `PORT`：监听端口
+- `PUBLIC_BASE_URL`：外部访问基地址
+- `DEFAULT_JUMP_URL`：非法或缺失 `u` 时的回退跳转地址
+- `DEFAULT_HELP_PATH`：帮助页路径
+- `FEISHU_VERIFICATION_TOKEN`：飞书事件回调校验 token
+- `FEISHU_ENCRYPT_KEY`：飞书事件回调加密 key
+- `HANDLER_TIMEOUT_MS`：`/api/handler` 超时保护
+- `DEBUG_TIMEOUT_MS`：`/api/debug/preview` 超时保护
+
+### V2 多维表格变量
+
+- `FEISHU_APP_ID`：企业自建应用 App ID
+- `FEISHU_APP_SECRET`：企业自建应用 App Secret
+- `BITABLE_APP_TOKEN`：多维表格 app token，默认 `XLNaboeiCaFzN5sUtMfcVl9Mn8z`
+- `BITABLE_TABLE_ID`：数据表 ID，默认 `tbl9MppZ1OXYKapw`
+- `BITABLE_VIEW_ID`：视图 ID，默认 `vewbgk85az`
+- `BITABLE_RESULT_FIELD_NAME`：结果字段名，默认 `任务名`
+- `BITABLE_STATUS_FIELD_NAME`：状态字段名，默认 `任务状态`
+- `BITABLE_TARGET_STATUS`：目标状态值，默认 `在干`
+- `BITABLE_CACHE_TTL_SECONDS`：slot 缓存时间，默认 `60`
+- `BITABLE_REQUEST_TIMEOUT_MS`：多维表格请求超时，默认 `1500`
+
+## slot=current_task 的测试方式
+
+### 本地调试
+
+```bash
+curl "http://127.0.0.1:3000/api/debug/preview?slot=current_task"
+curl "http://127.0.0.1:3000/api/debug/preview?slot=current_task&u=https%3A%2F%2Fopen.feishu.cn"
+curl "http://127.0.0.1:3000/api/debug/preview?t=手动文案&slot=current_task"
+```
+
+预期：
+
+- `slot=current_task` 返回多维表格中的当前任务
+- `slot=current_task&u=...` 只改变跳转，不改变文案来源
+- `t=手动文案&slot=current_task` 时仍以 `t` 为准
+
+### 线上调试
+
+```text
+https://feishu-sign-preview.onrender.com/?slot=current_task
+https://feishu-sign-preview.onrender.com/?slot=current_task&u=https%3A%2F%2Fopen.feishu.cn
+https://feishu-sign-preview.onrender.com/?t=手动文案&slot=current_task
+```
 
 ## 接口
 
@@ -217,7 +324,8 @@ https://sign.example.com/?k=img_v3_xxx&t=你好呀~&u=https%3A%2F%2Fopen.feishu.
 - 自动响应 `url_verification` challenge
 - 校验 Verification Token
 - 当配置了 `FEISHU_ENCRYPT_KEY` 时交给官方 SDK 验签 / 解密
-- 解析原始链接中的 `t` / `k` / `u`
+- 解析原始链接中的 `t` / `k` / `u` / `slot`
+- `slot=current_task` 时通过 `tenant_access_token + 多维表格 records` 拉取数据
 - 超时或异常时返回稳定的默认预览
 
 ### `GET /api/debug/preview`
@@ -230,13 +338,14 @@ https://sign.example.com/?k=img_v3_xxx&t=你好呀~&u=https%3A%2F%2Fopen.feishu.
 /api/debug/preview?url=https%3A%2F%2Fsign.example.com%2F%3Fk%3Dimg_v3_xxx%26t%3Dhello
 ```
 
-或
+或：
 
 ```text
 /api/debug/preview?t=hello&k=img_v3_xxx&u=https%3A%2F%2Fopen.feishu.cn
+/api/debug/preview?slot=current_task
 ```
 
-当内部生成异常或超时时，接口会返回降级后的稳定结果，并带上 `degraded: true`。
+当内部生成异常或超时时，接口会返回降级后的稳定结果，并带上 `degraded: true`
 
 ## 返回结构
 
@@ -305,6 +414,14 @@ https://sign.example.com/?k=img_v3_xxx&t=你好呀~&u=https%3A%2F%2Fopen.feishu.
 - GIF / APNG 在移动端通常只显示首帧
 - 如果图片被删除或权限异常，预览会退回飞书默认图标
 
+### slot=current_task 一直显示“空闲中”
+
+- 检查 `FEISHU_APP_ID` 和 `FEISHU_APP_SECRET` 是否正确
+- 检查应用是否已开通 `bitable:app:readonly`、`bitable:app` 或 `base:record:retrieve` 之一
+- 检查 `BITABLE_APP_TOKEN`、`BITABLE_TABLE_ID`、`BITABLE_VIEW_ID` 是否与目标表一致
+- 检查字段名是否与实际表头完全一致：`任务名`、`任务状态`
+- 检查视图内是否确实存在一条 `任务状态 = 在干` 的记录
+
 ## 测试
 
 运行最小自动化测试：
@@ -320,19 +437,11 @@ npm test
 - 非法 `u` 拦截
 - `url_verification` challenge 返回
 - 根路径跳转
-
-## 扩展预留
-
-当前版本已经预留以下扩展点，但默认不启用复杂逻辑：
-
-- `src/services/variable-service.ts`
-  - 未来可支持 `{{time_now}}`、`{{weekday}}`、`{{countdown}}`
-- `src/services/slot-service.ts`
-  - 未来可支持 `slot=current_task`
-- `src/services/data-provider.ts`
-  - 未来可接 Redis、Bitable 或自定义 API
-
-当前 V1 默认仅做纯文本透传，不执行模板表达式。
+- `t` 对 `slot` 的优先级
+- `BitableDataProvider` 命中记录
+- `BitableDataProvider` 无匹配返回
+- `BitableDataProvider` 异常回退
+- `BitableDataProvider` 缓存命中
 
 ## 目录结构
 
@@ -346,6 +455,7 @@ npm test
 │   │   ├── handler.ts
 │   │   └── index.ts
 │   ├── services
+│   │   ├── bitable-data-provider.ts
 │   │   ├── data-provider.ts
 │   │   ├── icon-service.ts
 │   │   ├── preview-service.ts
