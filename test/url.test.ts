@@ -1,0 +1,59 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+
+import type { AppConfig } from "../src/config.ts";
+import { parsePreviewParamsFromUrl } from "../src/lib/url.ts";
+import { PreviewService } from "../src/services/preview-service.ts";
+
+const testConfig: AppConfig = {
+  nodeEnv: "test",
+  host: "127.0.0.1",
+  port: 3000,
+  publicBaseUrl: "http://127.0.0.1:3000",
+  defaultHelpPath: "/",
+  defaultJumpUrl: "http://127.0.0.1:3000/",
+  helpUrl: "http://127.0.0.1:3000/",
+  feishuAppId: "",
+  feishuAppSecret: "",
+  feishuVerificationToken: "",
+  feishuEncryptKey: "",
+  maxTextLength: 80,
+  handlerTimeoutMs: 1500,
+  debugTimeoutMs: 2000,
+  enableCardPreview: false,
+};
+
+test("parsePreviewParamsFromUrl decodes t/k/u parameters", () => {
+  const params = parsePreviewParamsFromUrl(
+    "https://sign.example.com/?t=%E4%BD%A0%E5%A5%BD%E5%91%80~&k=img_v3_xxx&u=https%3A%2F%2Fopen.feishu.cn",
+  );
+
+  assert.deepEqual(params, {
+    t: "你好呀~",
+    k: "img_v3_xxx",
+    u: "https://open.feishu.cn",
+    slot: undefined,
+  });
+});
+
+test("PreviewService falls back to a single space when text is missing", async () => {
+  const previewService = new PreviewService(testConfig);
+  const preview = await previewService.buildFromParams({}, { sourceUrl: testConfig.publicBaseUrl });
+
+  assert.equal(preview.text, " ");
+  assert.equal(preview.response.inline.title, " ");
+});
+
+test("PreviewService blocks invalid redirect urls", async () => {
+  const previewService = new PreviewService(testConfig);
+  const preview = await previewService.buildFromParams(
+    {
+      t: "hello",
+      u: "javascript:alert(1)",
+    },
+    { sourceUrl: testConfig.publicBaseUrl },
+  );
+
+  assert.equal(preview.jumpUrl, testConfig.defaultJumpUrl);
+  assert.equal(preview.response.inline.url.web, testConfig.defaultJumpUrl);
+});

@@ -1,0 +1,29 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      HOST: ${HOST:-0.0.0.0}
+      PORT: ${PORT:-3000}
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-https://sign.example.com}
+      DEFAULT_JUMP_URL: ${DEFAULT_JUMP_URL:-https://sign.example.com/}
+      DEFAULT_HELP_PATH: ${DEFAULT_HELP_PATH:-/}
+      FEISHU_APP_ID: ${FEISHU_APP_ID:-}
+      FEISHU_APP_SECRET: ${FEISHU_APP_SECRET:-}
+      FEISHU_VERIFICATION_TOKEN: ${FEISHU_VERIFICATION_TOKEN:-}
+      FEISHU_ENCRYPT_KEY: ${FEISHU_ENCRYPT_KEY:-}
+      MAX_TEXT_LENGTH: ${MAX_TEXT_LENGTH:-80}
+      ENABLE_CARD_PREVIEW: ${ENABLE_CARD_PREVIEW:-false}
+      HANDLER_TIMEOUT_MS: ${HANDLER_TIMEOUT_MS:-1500}
+      DEBUG_TIMEOUT_MS: ${DEBUG_TIMEOUT_MS:-2000}
+    ports:
+      - "${PORT:-3000}:${PORT:-3000}"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1:${PORT:-3000}/api/debug/preview >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    restart: unless-stopped
