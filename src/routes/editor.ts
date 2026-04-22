@@ -424,7 +424,7 @@ function renderEditorPage(initialQuery: Record<string, string | undefined>) {
                 <option value="5">5 个</option>
                 <option value="6">6 个</option>
               </select>
-              <div class="hint">多表情模式下会按这个数量自动换行。你想排 4 个、5 个都可以自己切。</div>
+              <div class="hint" id="cols-hint">多表情模式下会按这个数量自动换行。你想排 4 个、5 个都可以自己切。</div>
             </div>
 
             <div class="field">
@@ -513,6 +513,7 @@ function renderEditorPage(initialQuery: Record<string, string | undefined>) {
       const textInput = document.getElementById("text-input");
       const jumpInput = document.getElementById("jump-input");
       const colsSelect = document.getElementById("cols-select");
+      const colsHint = document.getElementById("cols-hint");
       const iconInput = document.getElementById("icon-input");
       const iconSearch = document.getElementById("icon-search");
       const iconGrid = document.getElementById("icon-grid");
@@ -625,7 +626,9 @@ function renderEditorPage(initialQuery: Record<string, string | undefined>) {
           params.set("ks", selectedKeys.join(","));
         }
 
-        params.set("cols", cols);
+        if (selectedKeys.length > 1) {
+          params.set("cols", cols);
+        }
 
         if (jumpUrl) {
           params.set("u", jumpUrl);
@@ -650,12 +653,12 @@ function renderEditorPage(initialQuery: Record<string, string | undefined>) {
           for (const key of selectedKeys) {
             const params = new URLSearchParams();
             params.set("k", key);
-            params.set("cols", String(cols));
             if (jumpUrl) {
               params.set("u", jumpUrl);
             }
             if (ksValue) {
               params.set("ks", ksValue);
+              params.set("cols", String(cols));
             }
             iconOnlyUrls.push(buildUrl(APP_CONFIG.previewBaseUrl, params));
           }
@@ -683,14 +686,13 @@ function renderEditorPage(initialQuery: Record<string, string | undefined>) {
             params.set("k", selectedKeys[0]);
           }
 
-          params.set("cols", String(cols));
-
           if (jumpUrl) {
             params.set("u", jumpUrl);
           }
 
           if (ksValue) {
             params.set("ks", ksValue);
+            params.set("cols", String(cols));
           }
 
           mainUrl = buildUrl(APP_CONFIG.previewBaseUrl, params);
@@ -719,7 +721,12 @@ function renderEditorPage(initialQuery: Record<string, string | undefined>) {
           imageUrl: "",
         });
 
-        selectedIcons.style.gridTemplateColumns = "repeat(" + cols + ", minmax(0, 1fr))";
+        const previewCols = Math.max(1, Math.min(cols, items.length || 1));
+        selectedIcons.style.gridTemplateColumns = "repeat(" + previewCols + ", minmax(0, 1fr))";
+        colsSelect.disabled = items.length <= 1;
+        colsHint.textContent = items.length > 1
+          ? "多表情模式下会按这个数量自动换行。你想排 4 个、5 个都可以自己切。"
+          : "只用一个表情时不需要分行，这个设置会在你选了多个表情后自动生效。";
 
         if (items.length === 0) {
           selectedIcons.innerHTML = '<div class="selected-placeholder">还没有选择表情，建议至少保留一个默认图标。</div>';
@@ -743,7 +750,7 @@ function renderEditorPage(initialQuery: Record<string, string | undefined>) {
         selectedIconsSummary.textContent =
           items.length > 1
             ? "已选 " + items.length + " 个小表情。生成时会自动每行放 " + cols + " 个。"
-            : "已选 1 个小表情。单链接模式会直接把它作为主图标。";
+            : "已选 1 个小表情。当前就是单表情模式，复制出来会是一条更简洁的签名链接。";
       }
 
       function renderIconGrid() {
@@ -867,13 +874,20 @@ function renderEditorPage(initialQuery: Record<string, string | undefined>) {
             const payload = await fetchPreview(params);
             const resolved = payload.resolved || {};
             const jumpUrl = resolved.jumpUrl || draft.editorUrl;
-            const title = resolved.text && resolved.text !== "\\u200b" ? resolved.text : "零宽占位字符";
+            const title =
+              draft.selectedKeys.length === 1 && !draft.text && !draft.shouldUseSlot
+                ? "单表情签名预览"
+                : resolved.text && resolved.text !== "\\u200b"
+                  ? resolved.text
+                  : "零宽占位字符";
 
             previewLink.textContent = title;
             previewLink.href = jumpUrl;
             previewMeta.textContent = draft.selectedKeys.length > 1
               ? "已生成 " + draft.selectedKeys.length + " 个图标链接 + 1 条主链接。\\n图标块会按每行 " + draft.cols + " 个排版。\\n点击主链接后会跳到：" + jumpUrl
-              : "点击后跳转到：" + jumpUrl;
+              : draft.selectedKeys.length === 1 && !draft.text && !draft.shouldUseSlot
+                ? "当前是单表情模式，最终效果会以图标为主。\\n点击后会跳到：" + jumpUrl
+                : "点击后跳转到：" + jumpUrl;
             previewNotice.textContent = draft.jumpUrl
               ? "你已经设置了点击跳转，点击签名会优先跳到这个地址。"
               : "你还没设置点击跳转，点击签名时会自动打开当前设置页。";

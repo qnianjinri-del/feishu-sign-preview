@@ -64,7 +64,7 @@ test("GET / redirects signature links to editor when u is missing and keeps ks/c
   }
 });
 
-test("GET /editor returns the self-service editor page with multi icon picker and cols selector", async () => {
+test("GET /editor returns the self-service editor page with single/multi icon guidance", async () => {
   const app = await buildApp();
 
   try {
@@ -78,6 +78,7 @@ test("GET /editor returns the self-service editor page with multi icon picker an
     assert.match(response.body, /飞书签名设置器/);
     assert.match(response.body, /每行图标数量/);
     assert.match(response.body, /value="5"/);
+    assert.match(response.body, /只用一个表情时不需要分行/);
     assert.match(response.body, /支持逗号分隔多个 key/);
     assert.match(response.body, /img_v3_02e1_cf42a888-b257-4f5a-9ad7-22317623e75g/);
     assert.match(response.body, /current_task/);
