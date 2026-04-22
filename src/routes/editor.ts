@@ -653,13 +653,6 @@ function renderEditorPage(initialQuery: Record<string, string | undefined>) {
           for (const key of selectedKeys) {
             const params = new URLSearchParams();
             params.set("k", key);
-            if (jumpUrl) {
-              params.set("u", jumpUrl);
-            }
-            if (ksValue) {
-              params.set("ks", ksValue);
-              params.set("cols", String(cols));
-            }
             iconOnlyUrls.push(buildUrl(APP_CONFIG.previewBaseUrl, params));
           }
 
@@ -690,7 +683,7 @@ function renderEditorPage(initialQuery: Record<string, string | undefined>) {
             params.set("u", jumpUrl);
           }
 
-          if (ksValue) {
+          if (ksValue && !jumpUrl) {
             params.set("ks", ksValue);
             params.set("cols", String(cols));
           }
@@ -845,9 +838,9 @@ function renderEditorPage(initialQuery: Record<string, string | undefined>) {
           if (!draft.mainUrl && draft.selectedKeys.length > 1) {
             previewLink.textContent = "已选择 " + draft.selectedKeys.length + " 个小表情";
             previewLink.href = draft.openUrl;
-            previewMeta.textContent = "生成结果会自动每行排 " + draft.cols + " 个图标链接。";
+            previewMeta.textContent = "生成结果会自动每行排 " + draft.cols + " 个图标链接。多表情场景会优先使用短链接，减少飞书把整串地址原样显示出来的概率。";
             previewNotice.textContent = draft.jumpUrl
-              ? "这些图标链接都会跳到你填写的目标地址。"
+              ? "纯图标模式下会优先保证图标正常显示。如果你还想要一个稳定的点击跳转入口，建议再补一条文案或当前任务主链接。"
               : "这些图标链接默认会回到当前设置页，方便你继续修改。";
             return;
           }
@@ -884,7 +877,7 @@ function renderEditorPage(initialQuery: Record<string, string | undefined>) {
             previewLink.textContent = title;
             previewLink.href = jumpUrl;
             previewMeta.textContent = draft.selectedKeys.length > 1
-              ? "已生成 " + draft.selectedKeys.length + " 个图标链接 + 1 条主链接。\\n图标块会按每行 " + draft.cols + " 个排版。\\n点击主链接后会跳到：" + jumpUrl
+              ? "已生成 " + draft.selectedKeys.length + " 个短图标链接 + 1 条主链接。\\n图标块会按每行 " + draft.cols + " 个排版。\\n点击主链接后会跳到：" + jumpUrl
               : draft.selectedKeys.length === 1 && !draft.text && !draft.shouldUseSlot
                 ? "当前是单表情模式，最终效果会以图标为主。\\n点击后会跳到：" + jumpUrl
                 : "点击后跳转到：" + jumpUrl;
