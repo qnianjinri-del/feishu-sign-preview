@@ -20,6 +20,7 @@ export interface PreviewParamsInput {
   k?: string | undefined;
   u?: string | undefined;
   slot?: string | undefined;
+  ks?: string | undefined;
 }
 
 export interface ResolvedPreviewParams {

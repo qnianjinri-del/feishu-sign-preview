@@ -54,6 +54,7 @@ export function parsePreviewParamsFromUrl(rawUrl: string): PreviewParamsInput {
     k: normalizeOptionalParam(parsed.searchParams.get("k")),
     u: normalizeOptionalParam(parsed.searchParams.get("u")),
     slot: normalizeOptionalParam(parsed.searchParams.get("slot")),
+    ks: normalizeOptionalParam(parsed.searchParams.get("ks")),
   };
 }
 

@@ -15,25 +15,19 @@ function serializeForScript(value: unknown): string {
 }
 
 function renderEditorPage(initialQuery: Record<string, string | undefined>) {
-  const previewBaseUrl = config.publicBaseUrl;
-  const editorBaseUrl = buildEditorUrl(config.publicBaseUrl, {});
-  const defaultBitableUrl = buildBitableAppUrl(
-    config.publicBaseUrl,
-    config.bitableAppToken,
-    config.bitableTableId,
-    config.bitableViewId,
-  );
-
   const appConfig = {
-    previewBaseUrl,
-    editorBaseUrl,
-    defaultBitableUrl,
+    previewBaseUrl: config.publicBaseUrl,
+    editorBaseUrl: buildEditorUrl(config.publicBaseUrl, {}),
+    defaultJumpUrl: buildBitableAppUrl(
+      config.publicBaseUrl,
+      config.bitableAppToken,
+      config.bitableTableId,
+      config.bitableViewId,
+    ),
     defaultIconKey: iconService.getDefaultEditorIconKey(),
     iconCatalog: iconService.getEditorCatalog(),
     initialQuery,
   };
-
-  const appConfigJson = serializeForScript(appConfig);
 
   return `<!doctype html>
 <html lang="zh-CN">
@@ -47,12 +41,10 @@ function renderEditorPage(initialQuery: Record<string, string | undefined>) {
         --bg: #eef4fb;
         --panel: #ffffff;
         --panel-soft: #f7faff;
-        --panel-strong: #eef4ff;
         --ink: #16233a;
         --muted: #657388;
         --line: rgba(22, 35, 58, 0.12);
         --accent: #2f6df6;
-        --accent-soft: rgba(47, 109, 246, 0.12);
         --success: #0d7c66;
         --shadow: 0 18px 48px rgba(38, 60, 112, 0.12);
       }
@@ -155,7 +147,7 @@ function renderEditorPage(initialQuery: Record<string, string | undefined>) {
         background: var(--panel-soft);
       }
       textarea {
-        min-height: 92px;
+        min-height: 112px;
         resize: vertical;
       }
       .row {
@@ -200,34 +192,46 @@ function renderEditorPage(initialQuery: Record<string, string | undefined>) {
         background: linear-gradient(180deg, #f7faff 0%, #eef4ff 100%);
         border: 1px solid rgba(47, 109, 246, 0.16);
       }
-      .selected-icon {
+      .selected-icons {
         display: grid;
-        grid-template-columns: 56px minmax(0, 1fr);
-        gap: 12px;
-        align-items: center;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 10px;
         padding: 12px;
         border-radius: 16px;
         background: linear-gradient(180deg, #f7faff 0%, #eef4ff 100%);
         border: 1px solid rgba(47, 109, 246, 0.16);
       }
-      .selected-icon img {
-        width: 56px;
-        height: 56px;
-        border-radius: 14px;
-        object-fit: contain;
-        background: rgba(47, 109, 246, 0.08);
-        padding: 8px;
-      }
-      .selected-icon strong {
-        display: block;
-        font-size: 15px;
-      }
-      .selected-icon code {
-        display: block;
-        margin-top: 4px;
+      .selected-placeholder {
+        grid-column: 1 / -1;
         color: var(--muted);
-        font-size: 12px;
-        word-break: break-all;
+        font-size: 13px;
+      }
+      .picked-icon {
+        display: grid;
+        gap: 6px;
+        justify-items: center;
+        text-align: center;
+        padding: 10px 6px;
+        border-radius: 14px;
+        background: rgba(255, 255, 255, 0.86);
+      }
+      .picked-icon img {
+        width: 36px;
+        height: 36px;
+        object-fit: contain;
+      }
+      .picked-icon span {
+        width: 100%;
+        font-size: 11px;
+        line-height: 1.3;
+        color: var(--muted);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .picked-summary {
+        color: var(--muted);
+        font-size: 13px;
       }
       .icon-panel {
         border: 1px solid rgba(47, 109, 246, 0.16);
@@ -336,6 +340,7 @@ function renderEditorPage(initialQuery: Record<string, string | undefined>) {
         color: var(--muted);
         font-size: 14px;
         line-height: 1.6;
+        white-space: pre-line;
       }
       .notice {
         margin-top: 14px;
@@ -370,6 +375,9 @@ function renderEditorPage(initialQuery: Record<string, string | undefined>) {
         .toolbar-row {
           grid-template-columns: 1fr;
         }
+        .selected-icons {
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
       }
     </style>
   </head>
@@ -378,7 +386,7 @@ function renderEditorPage(initialQuery: Record<string, string | undefined>) {
       <div class="topbar">
         <div>
           <div class="title">飞书签名设置器</div>
-          <div class="subtitle">这里生成的签名链接会自动编码，更适合直接贴到飞书个性签名里。你也可以直接点选小表情，不用再手填 <code>image_key</code>。</div>
+          <div class="subtitle">这里生成的签名链接会自动编码，更适合直接贴到飞书个性签名里。现在支持一次选择多个小表情，生成结果会自动按每行 4 个排好。</div>
         </div>
         <a class="link" href="/">返回说明页</a>
       </div>
@@ -394,31 +402,26 @@ function renderEditorPage(initialQuery: Record<string, string | undefined>) {
             <div class="field" id="text-field">
               <label for="text-input">外显文案</label>
               <textarea id="text-input" placeholder="例如：你好呀~"></textarea>
-              <div class="hint">这里填你希望飞书里直接显示的文字。如果同时勾选当前任务兜底，只有当你不填文案时才会去读多维表格。</div>
+              <div class="hint">这里填飞书里直接显示的文字。如果同时勾选当前任务兜底，只有当你不填文案时才会去读多维表格。</div>
             </div>
 
             <div class="field">
               <label for="jump-input">点击跳转</label>
               <input id="jump-input" type="text" placeholder="https:// 开头，不填时默认跳回设置页" />
-              <div class="hint">如果这里不填，点击签名时会自动打开当前设置页，方便你继续修改。</div>
+              <div class="hint">这里可以填任何你想跳转的地址。如果留空，点击签名时会自动打开当前设置页，方便继续修改。</div>
             </div>
 
             <div class="row">
-              <button class="button ghost" type="button" id="use-bitable-target">使用当前多维表格作为跳转</button>
+              <button class="button ghost" type="button" id="use-default-target">填入默认跳转地址</button>
               <button class="button ghost" type="button" id="clear-target">清空跳转</button>
             </div>
 
             <div class="field">
               <label>小表情图标</label>
-              <div class="hint">签名场景建议保留图标，更稳。下面可以直接点图选择，编辑器会自动把对应的 <code>k</code> 参数带进链接里。</div>
+              <div class="hint">可以一次选多个，生成结果会自动每行 4 个。再次点击同一个图标会取消选择。</div>
 
-              <div class="selected-icon">
-                <img id="selected-icon-thumb" alt="已选图标" />
-                <div>
-                  <strong id="selected-icon-name">默认表情</strong>
-                  <code id="selected-icon-key"></code>
-                </div>
-              </div>
+              <div class="selected-icons" id="selected-icons"></div>
+              <div class="picked-summary" id="selected-icons-summary"></div>
 
               <div class="icon-panel">
                 <div class="toolbar-row">
@@ -429,12 +432,13 @@ function renderEditorPage(initialQuery: Record<string, string | undefined>) {
                 <div class="icon-grid" id="icon-grid"></div>
                 <div class="row">
                   <button class="button ghost" type="button" id="load-more-icons">加载更多表情</button>
+                  <button class="button ghost" type="button" id="clear-icons">清空已选表情</button>
                 </div>
               </div>
 
-              <label for="icon-input">高级模式：图标 key</label>
-              <input id="icon-input" type="text" placeholder="也可以直接粘贴自定义 image_key" />
-              <div class="hint">如果你已经有自己的飞书图片 key，也可以直接粘贴覆盖当前选择。</div>
+              <label for="icon-input">高级模式：支持逗号分隔多个 key</label>
+              <input id="icon-input" type="text" placeholder="例如：img_xxx,img_yyy,img_zzz" />
+              <div class="hint">如果你已经有自己的飞书图片 key，可以直接粘贴多个 key。编辑器会自动去重并保留顺序。</div>
             </div>
 
             <label class="checkbox" id="slot-fallback-row">
@@ -450,12 +454,12 @@ function renderEditorPage(initialQuery: Record<string, string | undefined>) {
             <div class="field">
               <label for="link-output">签名链接</label>
               <textarea id="link-output" readonly></textarea>
-              <div class="hint">把这里生成的链接复制到飞书签名里即可。后续想改内容，重新打开这个设置页调整并复制新的链接。</div>
+              <div class="hint">如果你选了多个小表情，这里会生成多条链接并自动按每行 4 个排版。整块复制到飞书签名里即可。</div>
             </div>
 
             <div class="row">
               <button class="button primary" type="button" id="copy-link">复制签名链接</button>
-              <button class="button" type="button" id="open-preview">打开签名链接</button>
+              <button class="button" type="button" id="open-preview">打开主链接</button>
               <button class="button ghost" type="button" id="open-editor-link">打开当前设置页</button>
             </div>
           </div>
@@ -478,7 +482,7 @@ function renderEditorPage(initialQuery: Record<string, string | undefined>) {
             </div>
 
             <div class="footer-note">
-              原理不变：编辑器只负责生成链接，真正显示在飞书里的还是当前服务返回的链接预览。为了让签名更稳，这里默认会带上一个图标。
+              编辑器只负责生成链接，真正显示在飞书里的还是服务端返回的链接预览。多表情模式下，默认会生成多条图标链接，再视情况补一条主链接。
             </div>
           </div>
         </aside>
@@ -486,7 +490,7 @@ function renderEditorPage(initialQuery: Record<string, string | undefined>) {
     </div>
 
     <script>
-      const APP_CONFIG = ${appConfigJson};
+      const APP_CONFIG = ${serializeForScript(appConfig)};
 
       const state = {
         mode: "single",
@@ -503,9 +507,9 @@ function renderEditorPage(initialQuery: Record<string, string | undefined>) {
       const iconStats = document.getElementById("icon-stats");
       const loadMoreIcons = document.getElementById("load-more-icons");
       const resetIcon = document.getElementById("reset-icon");
-      const selectedIconThumb = document.getElementById("selected-icon-thumb");
-      const selectedIconName = document.getElementById("selected-icon-name");
-      const selectedIconKey = document.getElementById("selected-icon-key");
+      const clearIcons = document.getElementById("clear-icons");
+      const selectedIcons = document.getElementById("selected-icons");
+      const selectedIconsSummary = document.getElementById("selected-icons-summary");
       const slotFallback = document.getElementById("slot-fallback");
       const slotFallbackRow = document.getElementById("slot-fallback-row");
       const slotReadonly = document.getElementById("slot-readonly");
@@ -516,7 +520,7 @@ function renderEditorPage(initialQuery: Record<string, string | undefined>) {
       const copyLink = document.getElementById("copy-link");
       const openPreview = document.getElementById("open-preview");
       const openEditorLink = document.getElementById("open-editor-link");
-      const useBitableTarget = document.getElementById("use-bitable-target");
+      const useDefaultTarget = document.getElementById("use-default-target");
       const clearTarget = document.getElementById("clear-target");
 
       let pendingController = null;
@@ -531,16 +535,232 @@ function renderEditorPage(initialQuery: Record<string, string | undefined>) {
           .replace(/'/g, "&#39;");
       }
 
+      function parseIconKeys(value) {
+        const seen = new Set();
+        return String(value || "")
+          .split(/[\\s,，]+/)
+          .map((item) => item.trim())
+          .filter(Boolean)
+          .filter((item) => {
+            if (seen.has(item)) {
+              return false;
+            }
+            seen.add(item);
+            return true;
+          });
+      }
+
+      function setSelectedIconKeys(keys) {
+        iconInput.value = keys.join(",");
+      }
+
+      function getSelectedIconKeys() {
+        const parsed = parseIconKeys(iconInput.value);
+        return parsed.length > 0 ? parsed : [APP_CONFIG.defaultIconKey];
+      }
+
+      function chunk(items, size) {
+        const output = [];
+        for (let index = 0; index < items.length; index += size) {
+          output.push(items.slice(index, index + size));
+        }
+        return output;
+      }
+
+      function buildUrl(baseUrl, params) {
+        const url = new URL(baseUrl);
+        url.search = params.toString();
+        return url.toString();
+      }
+
+      function syncEditorLocation(editorUrl) {
+        window.history.replaceState({}, "", editorUrl);
+      }
+
+      function buildEditorParams() {
+        const params = new URLSearchParams();
+        const text = textInput.value.trim();
+        const jumpUrl = jumpInput.value.trim();
+        const selectedKeys = getSelectedIconKeys();
+        const shouldUseSlot = state.mode === "current_task" || slotFallback.checked;
+
+        if (state.mode === "single" && text) {
+          params.set("t", text);
+        }
+
+        if (shouldUseSlot) {
+          params.set("slot", "current_task");
+        }
+
+        if (selectedKeys[0]) {
+          params.set("k", selectedKeys[0]);
+        }
+
+        if (selectedKeys.length > 1) {
+          params.set("ks", selectedKeys.join(","));
+        }
+
+        if (jumpUrl) {
+          params.set("u", jumpUrl);
+        }
+
+        return params;
+      }
+
+      function buildSignatureDraft() {
+        const text = textInput.value.trim();
+        const jumpUrl = jumpInput.value.trim();
+        const selectedKeys = getSelectedIconKeys();
+        const shouldUseSlot = state.mode === "current_task" || slotFallback.checked;
+        const ksValue = selectedKeys.length > 1 ? selectedKeys.join(",") : "";
+        const editorUrl = buildUrl(APP_CONFIG.editorBaseUrl, buildEditorParams());
+
+        const lines = [];
+        const iconOnlyUrls = [];
+
+        if (selectedKeys.length > 1) {
+          for (const key of selectedKeys) {
+            const params = new URLSearchParams();
+            params.set("k", key);
+            if (jumpUrl) {
+              params.set("u", jumpUrl);
+            }
+            if (ksValue) {
+              params.set("ks", ksValue);
+            }
+            iconOnlyUrls.push(buildUrl(APP_CONFIG.previewBaseUrl, params));
+          }
+
+          const iconGroups = chunk(iconOnlyUrls, 4);
+          for (const group of iconGroups) {
+            lines.push(group.join(" "));
+          }
+        }
+
+        const shouldAddMainLink = selectedKeys.length <= 1 || Boolean(text) || shouldUseSlot;
+        let mainUrl = "";
+
+        if (shouldAddMainLink) {
+          const params = new URLSearchParams();
+
+          if (state.mode === "single" && text) {
+            params.set("t", text);
+          }
+
+          if (shouldUseSlot) {
+            params.set("slot", "current_task");
+          }
+
+          if (selectedKeys[0]) {
+            params.set("k", selectedKeys[0]);
+          }
+
+          if (jumpUrl) {
+            params.set("u", jumpUrl);
+          }
+
+          if (ksValue) {
+            params.set("ks", ksValue);
+          }
+
+          mainUrl = buildUrl(APP_CONFIG.previewBaseUrl, params);
+          lines.push(mainUrl);
+        }
+
+        return {
+          selectedKeys,
+          text,
+          jumpUrl,
+          shouldUseSlot,
+          editorUrl,
+          mainUrl,
+          openUrl: mainUrl || iconOnlyUrls[0] || editorUrl,
+          signatureContent: lines.join("\\n"),
+        };
+      }
+
+      function renderSelectedIcons() {
+        const selectedKeys = getSelectedIconKeys();
+        const items = selectedKeys.map((key) => APP_CONFIG.iconCatalog.find((item) => item.key === key) || {
+          key,
+          label: key,
+          imageUrl: "",
+        });
+
+        if (items.length === 0) {
+          selectedIcons.innerHTML = '<div class="selected-placeholder">还没有选择表情，建议至少保留一个默认图标。</div>';
+          selectedIconsSummary.textContent = "";
+          return;
+        }
+
+        selectedIcons.innerHTML = items
+          .map((item) => {
+            const imageHtml = item.imageUrl
+              ? '<img src="' +
+                escapeHtml(item.imageUrl) +
+                '" alt="' +
+                escapeHtml(item.label) +
+                '" referrerpolicy="no-referrer" />'
+              : "";
+            return '<div class="picked-icon">' + imageHtml + "<span>" + escapeHtml(item.label) + "</span></div>";
+          })
+          .join("");
+
+        selectedIconsSummary.textContent =
+          items.length > 1
+            ? "已选 " + items.length + " 个小表情。生成时会自动每行放 4 个。"
+            : "已选 1 个小表情。单链接模式会直接把它作为主图标。";
+      }
+
+      function renderIconGrid() {
+        const term = iconSearch.value.trim().toLowerCase();
+        const filtered = term
+          ? APP_CONFIG.iconCatalog.filter((item) => item.keywords.includes(term))
+          : APP_CONFIG.iconCatalog;
+        const visibleCount = term ? Math.max(180, state.visibleIconCount) : state.visibleIconCount;
+        const visibleItems = filtered.slice(0, visibleCount);
+        const selectedKeySet = new Set(getSelectedIconKeys());
+
+        iconGrid.innerHTML = visibleItems
+          .map((item) => {
+            const isActive = selectedKeySet.has(item.key);
+            return '<button class="icon-card ' +
+              (isActive ? "active" : "") +
+              '" type="button" data-icon-key="' +
+              escapeHtml(item.key) +
+              '" title="' +
+              escapeHtml(item.label) +
+              '">' +
+              '<img loading="lazy" src="' +
+              escapeHtml(item.imageUrl) +
+              '" alt="' +
+              escapeHtml(item.label) +
+              '" referrerpolicy="no-referrer" />' +
+              "<span>" +
+              escapeHtml(item.label) +
+              "</span>" +
+              "</button>";
+          })
+          .join("");
+
+        iconStats.textContent = term
+          ? "共找到 " + filtered.length + " 个表情，当前显示 " + visibleItems.length + " 个。"
+          : "已显示 " + visibleItems.length + " / " + APP_CONFIG.iconCatalog.length + " 个表情。";
+
+        loadMoreIcons.hidden = visibleItems.length >= filtered.length;
+      }
+
       function hydrateFromQuery() {
         const query = APP_CONFIG.initialQuery || {};
         const hasManualText = Boolean(query.t);
         const hasSlot = query.slot === "current_task";
+        const initialKeys = parseIconKeys(query.ks || query.k || APP_CONFIG.defaultIconKey);
 
         state.mode = hasSlot && !hasManualText ? "current_task" : "single";
         textInput.value = query.t || "";
-        iconInput.value = query.k || APP_CONFIG.defaultIconKey || "";
         jumpInput.value = query.u || "";
         slotFallback.checked = hasSlot && hasManualText;
+        setSelectedIconKeys(initialKeys);
       }
 
       function setMode(mode) {
@@ -556,133 +776,74 @@ function renderEditorPage(initialQuery: Record<string, string | undefined>) {
         update();
       }
 
-      function buildParams() {
-        const params = new URLSearchParams();
-        const text = textInput.value.trim();
-        const iconKey = iconInput.value.trim();
-        const jumpUrl = jumpInput.value.trim();
-        const shouldUseSlot = state.mode === "current_task" || slotFallback.checked;
-
-        if (state.mode === "single" && text) {
-          params.set("t", text);
-        }
-
-        if (shouldUseSlot) {
-          params.set("slot", "current_task");
-        }
-
-        if (iconKey) {
-          params.set("k", iconKey);
-        }
-
-        if (jumpUrl) {
-          params.set("u", jumpUrl);
-        }
-
-        return params;
-      }
-
-      function buildUrl(baseUrl, params) {
-        const url = new URL(baseUrl);
-        url.search = params.toString();
-        return url.toString();
-      }
-
-      function syncEditorLocation(editorUrl) {
-        window.history.replaceState({}, "", editorUrl);
-      }
-
-      function findSelectedIcon() {
-        const currentKey = iconInput.value.trim();
-        return APP_CONFIG.iconCatalog.find((item) => item.key === currentKey);
-      }
-
-      function renderSelectedIcon() {
-        const currentKey = iconInput.value.trim();
-        const selected = findSelectedIcon();
-
-        if (selected) {
-          selectedIconThumb.src = selected.imageUrl;
-          selectedIconThumb.alt = selected.label;
-          selectedIconName.textContent = selected.label;
-          selectedIconKey.textContent = selected.key;
-          return;
-        }
-
-        selectedIconThumb.removeAttribute("src");
-        selectedIconThumb.alt = "";
-        selectedIconName.textContent = currentKey ? "自定义图标" : "未选择图标";
-        selectedIconKey.textContent = currentKey || "建议签名场景保留一个图标";
-      }
-
-      function renderIconGrid() {
-        const term = iconSearch.value.trim().toLowerCase();
-        const filtered = term
-          ? APP_CONFIG.iconCatalog.filter((item) => item.keywords.includes(term))
-          : APP_CONFIG.iconCatalog;
-        const visibleCount = term ? Math.max(180, state.visibleIconCount) : state.visibleIconCount;
-        const visibleItems = filtered.slice(0, visibleCount);
-        const selectedKey = iconInput.value.trim();
-
-        iconGrid.innerHTML = visibleItems
-          .map((item) => {
-            const isActive = item.key === selectedKey;
-            return \`<button class="icon-card \${isActive ? "active" : ""}" type="button" data-icon-key="\${escapeHtml(item.key)}" title="\${escapeHtml(item.label)}">
-              <img loading="lazy" src="\${escapeHtml(item.imageUrl)}" alt="\${escapeHtml(item.label)}" referrerpolicy="no-referrer" />
-              <span>\${escapeHtml(item.label)}</span>
-            </button>\`;
-          })
-          .join("");
-
-        if (term) {
-          iconStats.textContent = \`共找到 \${filtered.length} 个表情，当前显示 \${visibleItems.length} 个。\`;
-        } else {
-          iconStats.textContent = \`已显示 \${visibleItems.length} / \${APP_CONFIG.iconCatalog.length} 个表情。\`;
-        }
-
-        loadMoreIcons.hidden = visibleItems.length >= filtered.length;
-      }
-
       async function fetchPreview(params) {
         if (pendingController) {
           pendingController.abort();
         }
 
         pendingController = new AbortController();
-        const response = await fetch(\`/api/debug/preview?\${params.toString()}\`, {
+        const response = await fetch("/api/debug/preview?" + params.toString(), {
           signal: pendingController.signal,
         });
         return response.json();
       }
 
       async function update() {
-        const params = buildParams();
-        const previewUrl = buildUrl(APP_CONFIG.previewBaseUrl, params);
-        const editorUrl = buildUrl(APP_CONFIG.editorBaseUrl, params);
+        const draft = buildSignatureDraft();
 
-        linkOutput.value = previewUrl;
-        openPreview.onclick = () => window.open(previewUrl, "_blank", "noopener,noreferrer");
-        openEditorLink.onclick = () => window.open(editorUrl, "_blank", "noopener,noreferrer");
-        syncEditorLocation(editorUrl);
-        renderSelectedIcon();
+        linkOutput.value = draft.signatureContent;
+        openPreview.onclick = () => window.open(draft.openUrl, "_blank", "noopener,noreferrer");
+        openEditorLink.onclick = () => window.open(draft.editorUrl, "_blank", "noopener,noreferrer");
+        syncEditorLocation(draft.editorUrl);
+        renderSelectedIcons();
         renderIconGrid();
 
         clearTimeout(debounceTimer);
         debounceTimer = setTimeout(async () => {
+          if (!draft.mainUrl && draft.selectedKeys.length > 1) {
+            previewLink.textContent = "已选择 " + draft.selectedKeys.length + " 个小表情";
+            previewLink.href = draft.openUrl;
+            previewMeta.textContent = "生成结果会自动每行排 4 个图标链接。";
+            previewNotice.textContent = draft.jumpUrl
+              ? "这些图标链接都会跳到你填写的目标地址。"
+              : "这些图标链接默认会回到当前设置页，方便你继续修改。";
+            return;
+          }
+
+          const params = new URLSearchParams();
+          if (state.mode === "single" && draft.text) {
+            params.set("t", draft.text);
+          }
+          if (draft.shouldUseSlot) {
+            params.set("slot", "current_task");
+          }
+          if (draft.selectedKeys[0]) {
+            params.set("k", draft.selectedKeys[0]);
+          }
+          if (draft.jumpUrl) {
+            params.set("u", draft.jumpUrl);
+          }
+          if (draft.selectedKeys.length > 1) {
+            params.set("ks", draft.selectedKeys.join(","));
+          }
+
           try {
             const payload = await fetchPreview(params);
             const resolved = payload.resolved || {};
-            const jumpUrl = resolved.jumpUrl || editorUrl;
+            const jumpUrl = resolved.jumpUrl || draft.editorUrl;
             const title = resolved.text && resolved.text !== "\\u200b" ? resolved.text : "零宽占位字符";
+
             previewLink.textContent = title;
             previewLink.href = jumpUrl;
-            previewMeta.textContent = \`点击后跳转到：\${jumpUrl}\`;
-            previewNotice.textContent = jumpInput.value.trim()
+            previewMeta.textContent = draft.selectedKeys.length > 1
+              ? "已生成 " + draft.selectedKeys.length + " 个图标链接 + 1 条主链接。\\n点击主链接后会跳到：" + jumpUrl
+              : "点击后跳转到：" + jumpUrl;
+            previewNotice.textContent = draft.jumpUrl
               ? "你已经设置了点击跳转，点击签名会优先跳到这个地址。"
               : "你还没设置点击跳转，点击签名时会自动打开当前设置页。";
-          } catch (error) {
+          } catch {
             previewLink.textContent = "预览生成失败";
-            previewLink.href = editorUrl;
+            previewLink.href = draft.editorUrl;
             previewMeta.textContent = "调试接口暂时不可用，先回退到设置页。";
             previewNotice.textContent = "当前仍可复制签名链接，但实时预览接口暂时不可用。";
           }
@@ -709,7 +870,13 @@ function renderEditorPage(initialQuery: Record<string, string | undefined>) {
           return;
         }
 
-        iconInput.value = target.dataset.iconKey || "";
+        const currentKeys = getSelectedIconKeys();
+        const key = target.dataset.iconKey || "";
+        const nextKeys = currentKeys.includes(key)
+          ? currentKeys.filter((item) => item !== key)
+          : currentKeys.concat(key);
+
+        setSelectedIconKeys(nextKeys.length > 0 ? nextKeys : [APP_CONFIG.defaultIconKey]);
         update();
       });
 
@@ -719,7 +886,12 @@ function renderEditorPage(initialQuery: Record<string, string | undefined>) {
       });
 
       resetIcon.addEventListener("click", () => {
-        iconInput.value = APP_CONFIG.defaultIconKey || "";
+        setSelectedIconKeys([APP_CONFIG.defaultIconKey]);
+        update();
+      });
+
+      clearIcons.addEventListener("click", () => {
+        setSelectedIconKeys([APP_CONFIG.defaultIconKey]);
         update();
       });
 
@@ -738,8 +910,8 @@ function renderEditorPage(initialQuery: Record<string, string | undefined>) {
         }
       });
 
-      useBitableTarget.addEventListener("click", () => {
-        jumpInput.value = APP_CONFIG.defaultBitableUrl;
+      useDefaultTarget.addEventListener("click", () => {
+        jumpInput.value = APP_CONFIG.defaultJumpUrl;
         update();
       });
 
@@ -764,6 +936,7 @@ export const editorRoute: FastifyPluginAsync = async (app) => {
       k: query.k,
       u: query.u,
       slot: query.slot,
+      ks: query.ks,
     });
   });
 };

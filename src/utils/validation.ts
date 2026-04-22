@@ -6,6 +6,7 @@ export const previewDebugQuerySchema = z.object({
   k: z.string().optional(),
   u: z.string().optional(),
   slot: z.string().optional(),
+  ks: z.string().optional(),
 });
 
 export const rootQuerySchema = z.object({
@@ -13,6 +14,7 @@ export const rootQuerySchema = z.object({
   k: z.string().optional(),
   u: z.string().optional(),
   slot: z.string().optional(),
+  ks: z.string().optional(),
 });
 
 export function isRecord(value: unknown): value is Record<string, unknown> {

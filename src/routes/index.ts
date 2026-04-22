@@ -139,7 +139,7 @@ function renderLandingPage() {
       <section class="hero">
         <div class="badge">Feishu Link Preview MVP</div>
         <h1>飞书个性签名 / 自定义链接预览服务</h1>
-        <p>这套玩法基于飞书的链接预览回调能力。现在已经内置了一个自助设置页，你可以自己修改外显文案、切换到当前任务模式、设置点击跳转，还能直接在编辑器里挑选小表情图标。</p>
+        <p>这套玩法基于飞书的链接预览回调能力。现在已经内置了一个自助设置页，你可以自己修改外显文案、切换到当前任务模式、设置点击跳转，还能在编辑器里一次选多个小表情。</p>
         <div class="row">
           <a class="button primary" href="/editor">打开设置页</a>
           <a class="button secondary" href="/api/debug/preview?slot=current_task">查看当前任务调试结果</a>
@@ -189,6 +189,7 @@ export const indexRoute: FastifyPluginAsync = async (app) => {
           t: query.data.t,
           k: query.data.k,
           slot: query.data.slot,
+          ks: query.data.ks,
         });
         const jumpUrl = normalizeJumpUrl(query.data.u, fallbackUrl);
         return reply.redirect(jumpUrl, 302);

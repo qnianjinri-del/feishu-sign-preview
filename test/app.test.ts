@@ -45,35 +45,36 @@ test("GET / redirects when u is valid", async () => {
   }
 });
 
-test("GET / redirects signature links to editor when u is missing", async () => {
+test("GET / redirects signature links to editor when u is missing and keeps ks", async () => {
   const app = await buildApp();
 
   try {
     const response = await app.inject({
       method: "GET",
-      url: "/?t=%E4%BD%A0%E5%A5%BD",
+      url: "/?t=%E4%BD%A0%E5%A5%BD&k=img_a&ks=img_a%2Cimg_b",
     });
 
     assert.equal(response.statusCode, 302);
-    assert.equal(response.headers.location, "http://127.0.0.1:3000/editor?t=%E4%BD%A0%E5%A5%BD");
+    assert.equal(response.headers.location, "http://127.0.0.1:3000/editor?t=%E4%BD%A0%E5%A5%BD&k=img_a&ks=img_a%2Cimg_b");
   } finally {
     await app.close();
   }
 });
 
-test("GET /editor returns the self-service editor page with icon picker", async () => {
+test("GET /editor returns the self-service editor page with multi icon picker", async () => {
   const app = await buildApp();
 
   try {
     const response = await app.inject({
       method: "GET",
-      url: "/editor?t=%E4%BD%A0%E5%A5%BD%E5%91%80~&slot=current_task",
+      url: "/editor?t=%E4%BD%A0%E5%A5%BD%E5%91%80~&slot=current_task&ks=img_a%2Cimg_b",
     });
 
     assert.equal(response.statusCode, 200);
     assert.match(response.headers["content-type"] ?? "", /text\/html/);
     assert.match(response.body, /飞书签名设置器/);
-    assert.match(response.body, /小表情图标/);
+    assert.match(response.body, /每行 4 个/);
+    assert.match(response.body, /支持逗号分隔多个 key/);
     assert.match(response.body, /img_v3_02e1_cf42a888-b257-4f5a-9ad7-22317623e75g/);
     assert.match(response.body, /current_task/);
   } finally {
