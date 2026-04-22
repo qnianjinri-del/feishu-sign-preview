@@ -137,7 +137,7 @@ function renderEditorPage(initialQuery: Record<string, string | undefined>) {
         font-size: 13px;
         line-height: 1.7;
       }
-      input[type="text"], textarea {
+      input[type="text"], textarea, select {
         width: 100%;
         border: 1px solid var(--line);
         border-radius: 14px;
@@ -386,7 +386,7 @@ function renderEditorPage(initialQuery: Record<string, string | undefined>) {
       <div class="topbar">
         <div>
           <div class="title">飞书签名设置器</div>
-          <div class="subtitle">这里生成的签名链接会自动编码，更适合直接贴到飞书个性签名里。现在支持一次选择多个小表情，生成结果会自动按每行 4 个排好。</div>
+          <div class="subtitle">这里生成的签名链接会自动编码，更适合直接贴到飞书个性签名里。现在支持一次选择多个小表情，你还可以自己决定每行放几个。</div>
         </div>
         <a class="link" href="/">返回说明页</a>
       </div>
@@ -417,8 +417,19 @@ function renderEditorPage(initialQuery: Record<string, string | undefined>) {
             </div>
 
             <div class="field">
+              <label for="cols-select">每行图标数量</label>
+              <select id="cols-select">
+                <option value="3">3 个</option>
+                <option value="4" selected>4 个</option>
+                <option value="5">5 个</option>
+                <option value="6">6 个</option>
+              </select>
+              <div class="hint">多表情模式下会按这个数量自动换行。你想排 4 个、5 个都可以自己切。</div>
+            </div>
+
+            <div class="field">
               <label>小表情图标</label>
-              <div class="hint">可以一次选多个，生成结果会自动每行 4 个。再次点击同一个图标会取消选择。</div>
+              <div class="hint">可以一次选多个，生成结果会按你设置的每行数量排版。再次点击同一个图标会取消选择。</div>
 
               <div class="selected-icons" id="selected-icons"></div>
               <div class="picked-summary" id="selected-icons-summary"></div>
@@ -454,7 +465,7 @@ function renderEditorPage(initialQuery: Record<string, string | undefined>) {
             <div class="field">
               <label for="link-output">签名链接</label>
               <textarea id="link-output" readonly></textarea>
-              <div class="hint">如果你选了多个小表情，这里会生成多条链接并自动按每行 4 个排版。整块复制到飞书签名里即可。</div>
+              <div class="hint">如果你选了多个小表情，这里会生成多条链接并按你设置的每行数量自动排版。整块复制到飞书签名里即可。</div>
             </div>
 
             <div class="row">
@@ -482,7 +493,7 @@ function renderEditorPage(initialQuery: Record<string, string | undefined>) {
             </div>
 
             <div class="footer-note">
-              编辑器只负责生成链接，真正显示在飞书里的还是服务端返回的链接预览。多表情模式下，默认会生成多条图标链接，再视情况补一条主链接。
+              编辑器只负责生成链接，真正显示在飞书里的还是服务端返回的链接预览。多表情模式下，会先生成图标链接块，再按需要补一条主链接。
             </div>
           </div>
         </aside>
@@ -501,6 +512,7 @@ function renderEditorPage(initialQuery: Record<string, string | undefined>) {
       const textField = document.getElementById("text-field");
       const textInput = document.getElementById("text-input");
       const jumpInput = document.getElementById("jump-input");
+      const colsSelect = document.getElementById("cols-select");
       const iconInput = document.getElementById("icon-input");
       const iconSearch = document.getElementById("icon-search");
       const iconGrid = document.getElementById("icon-grid");
@@ -550,6 +562,14 @@ function renderEditorPage(initialQuery: Record<string, string | undefined>) {
           });
       }
 
+      function parseColumns(value) {
+        const parsed = Number.parseInt(String(value || "4"), 10);
+        if (!Number.isFinite(parsed)) {
+          return 4;
+        }
+        return Math.min(6, Math.max(3, parsed));
+      }
+
       function setSelectedIconKeys(keys) {
         iconInput.value = keys.join(",");
       }
@@ -557,6 +577,10 @@ function renderEditorPage(initialQuery: Record<string, string | undefined>) {
       function getSelectedIconKeys() {
         const parsed = parseIconKeys(iconInput.value);
         return parsed.length > 0 ? parsed : [APP_CONFIG.defaultIconKey];
+      }
+
+      function getColumnsPerRow() {
+        return parseColumns(colsSelect.value);
       }
 
       function chunk(items, size) {
@@ -583,6 +607,7 @@ function renderEditorPage(initialQuery: Record<string, string | undefined>) {
         const jumpUrl = jumpInput.value.trim();
         const selectedKeys = getSelectedIconKeys();
         const shouldUseSlot = state.mode === "current_task" || slotFallback.checked;
+        const cols = String(getColumnsPerRow());
 
         if (state.mode === "single" && text) {
           params.set("t", text);
@@ -600,6 +625,8 @@ function renderEditorPage(initialQuery: Record<string, string | undefined>) {
           params.set("ks", selectedKeys.join(","));
         }
 
+        params.set("cols", cols);
+
         if (jumpUrl) {
           params.set("u", jumpUrl);
         }
@@ -612,6 +639,7 @@ function renderEditorPage(initialQuery: Record<string, string | undefined>) {
         const jumpUrl = jumpInput.value.trim();
         const selectedKeys = getSelectedIconKeys();
         const shouldUseSlot = state.mode === "current_task" || slotFallback.checked;
+        const cols = getColumnsPerRow();
         const ksValue = selectedKeys.length > 1 ? selectedKeys.join(",") : "";
         const editorUrl = buildUrl(APP_CONFIG.editorBaseUrl, buildEditorParams());
 
@@ -622,6 +650,7 @@ function renderEditorPage(initialQuery: Record<string, string | undefined>) {
           for (const key of selectedKeys) {
             const params = new URLSearchParams();
             params.set("k", key);
+            params.set("cols", String(cols));
             if (jumpUrl) {
               params.set("u", jumpUrl);
             }
@@ -631,8 +660,7 @@ function renderEditorPage(initialQuery: Record<string, string | undefined>) {
             iconOnlyUrls.push(buildUrl(APP_CONFIG.previewBaseUrl, params));
           }
 
-          const iconGroups = chunk(iconOnlyUrls, 4);
-          for (const group of iconGroups) {
+          for (const group of chunk(iconOnlyUrls, cols)) {
             lines.push(group.join(" "));
           }
         }
@@ -655,6 +683,8 @@ function renderEditorPage(initialQuery: Record<string, string | undefined>) {
             params.set("k", selectedKeys[0]);
           }
 
+          params.set("cols", String(cols));
+
           if (jumpUrl) {
             params.set("u", jumpUrl);
           }
@@ -668,6 +698,7 @@ function renderEditorPage(initialQuery: Record<string, string | undefined>) {
         }
 
         return {
+          cols,
           selectedKeys,
           text,
           jumpUrl,
@@ -681,11 +712,14 @@ function renderEditorPage(initialQuery: Record<string, string | undefined>) {
 
       function renderSelectedIcons() {
         const selectedKeys = getSelectedIconKeys();
+        const cols = getColumnsPerRow();
         const items = selectedKeys.map((key) => APP_CONFIG.iconCatalog.find((item) => item.key === key) || {
           key,
           label: key,
           imageUrl: "",
         });
+
+        selectedIcons.style.gridTemplateColumns = "repeat(" + cols + ", minmax(0, 1fr))";
 
         if (items.length === 0) {
           selectedIcons.innerHTML = '<div class="selected-placeholder">还没有选择表情，建议至少保留一个默认图标。</div>';
@@ -708,7 +742,7 @@ function renderEditorPage(initialQuery: Record<string, string | undefined>) {
 
         selectedIconsSummary.textContent =
           items.length > 1
-            ? "已选 " + items.length + " 个小表情。生成时会自动每行放 4 个。"
+            ? "已选 " + items.length + " 个小表情。生成时会自动每行放 " + cols + " 个。"
             : "已选 1 个小表情。单链接模式会直接把它作为主图标。";
       }
 
@@ -759,6 +793,7 @@ function renderEditorPage(initialQuery: Record<string, string | undefined>) {
         state.mode = hasSlot && !hasManualText ? "current_task" : "single";
         textInput.value = query.t || "";
         jumpInput.value = query.u || "";
+        colsSelect.value = String(parseColumns(query.cols || "4"));
         slotFallback.checked = hasSlot && hasManualText;
         setSelectedIconKeys(initialKeys);
       }
@@ -803,7 +838,7 @@ function renderEditorPage(initialQuery: Record<string, string | undefined>) {
           if (!draft.mainUrl && draft.selectedKeys.length > 1) {
             previewLink.textContent = "已选择 " + draft.selectedKeys.length + " 个小表情";
             previewLink.href = draft.openUrl;
-            previewMeta.textContent = "生成结果会自动每行排 4 个图标链接。";
+            previewMeta.textContent = "生成结果会自动每行排 " + draft.cols + " 个图标链接。";
             previewNotice.textContent = draft.jumpUrl
               ? "这些图标链接都会跳到你填写的目标地址。"
               : "这些图标链接默认会回到当前设置页，方便你继续修改。";
@@ -826,6 +861,7 @@ function renderEditorPage(initialQuery: Record<string, string | undefined>) {
           if (draft.selectedKeys.length > 1) {
             params.set("ks", draft.selectedKeys.join(","));
           }
+          params.set("cols", String(draft.cols));
 
           try {
             const payload = await fetchPreview(params);
@@ -836,7 +872,7 @@ function renderEditorPage(initialQuery: Record<string, string | undefined>) {
             previewLink.textContent = title;
             previewLink.href = jumpUrl;
             previewMeta.textContent = draft.selectedKeys.length > 1
-              ? "已生成 " + draft.selectedKeys.length + " 个图标链接 + 1 条主链接。\\n点击主链接后会跳到：" + jumpUrl
+              ? "已生成 " + draft.selectedKeys.length + " 个图标链接 + 1 条主链接。\\n图标块会按每行 " + draft.cols + " 个排版。\\n点击主链接后会跳到：" + jumpUrl
               : "点击后跳转到：" + jumpUrl;
             previewNotice.textContent = draft.jumpUrl
               ? "你已经设置了点击跳转，点击签名会优先跳到这个地址。"
@@ -856,6 +892,7 @@ function renderEditorPage(initialQuery: Record<string, string | undefined>) {
 
       textInput.addEventListener("input", update);
       jumpInput.addEventListener("input", update);
+      colsSelect.addEventListener("change", update);
       iconInput.addEventListener("input", update);
       slotFallback.addEventListener("change", update);
 
@@ -937,6 +974,7 @@ export const editorRoute: FastifyPluginAsync = async (app) => {
       u: query.u,
       slot: query.slot,
       ks: query.ks,
+      cols: query.cols,
     });
   });
 };

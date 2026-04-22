@@ -190,6 +190,7 @@ export const indexRoute: FastifyPluginAsync = async (app) => {
           k: query.data.k,
           slot: query.data.slot,
           ks: query.data.ks,
+          cols: query.data.cols,
         });
         const jumpUrl = normalizeJumpUrl(query.data.u, fallbackUrl);
         return reply.redirect(jumpUrl, 302);

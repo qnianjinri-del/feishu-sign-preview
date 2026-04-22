@@ -32,9 +32,9 @@ const testConfig: AppConfig = {
   enableCardPreview: false,
 };
 
-test("parsePreviewParamsFromUrl decodes t/k/u and ks parameters", () => {
+test("parsePreviewParamsFromUrl decodes t/k/u/ks/cols parameters", () => {
   const params = parsePreviewParamsFromUrl(
-    "https://sign.example.com/?t=%E4%BD%A0%E5%A5%BD%E5%91%80~&k=img_v3_xxx&u=https%3A%2F%2Fopen.feishu.cn&ks=img_a%2Cimg_b",
+    "https://sign.example.com/?t=%E4%BD%A0%E5%A5%BD%E5%91%80~&k=img_v3_xxx&u=https%3A%2F%2Fopen.feishu.cn&ks=img_a%2Cimg_b&cols=5",
   );
 
   assert.deepEqual(params, {
@@ -43,6 +43,7 @@ test("parsePreviewParamsFromUrl decodes t/k/u and ks parameters", () => {
     u: "https://open.feishu.cn",
     slot: undefined,
     ks: "img_a,img_b",
+    cols: "5",
   });
 });
 
@@ -119,8 +120,8 @@ test("PreviewService keeps t as the primary text and treats slot as fallback", a
 test("PreviewService returns fixed editor preview for /editor links", async () => {
   const previewService = new PreviewService(testConfig);
   const preview = await previewService.buildFromSourceUrl(
-    "http://127.0.0.1:3000/editor?t=%E4%BD%A0%E5%A5%BD&slot=current_task&ks=img_a%2Cimg_b",
-    { sourceUrl: "http://127.0.0.1:3000/editor?t=%E4%BD%A0%E5%A5%BD&slot=current_task&ks=img_a%2Cimg_b" },
+    "http://127.0.0.1:3000/editor?t=%E4%BD%A0%E5%A5%BD&slot=current_task&ks=img_a%2Cimg_b&cols=5",
+    { sourceUrl: "http://127.0.0.1:3000/editor?t=%E4%BD%A0%E5%A5%BD&slot=current_task&ks=img_a%2Cimg_b&cols=5" },
   );
 
   assert.match(preview.response.inline.title, /飞书签名设置器@127.0.0.1/);
