@@ -215,10 +215,28 @@ function renderEditorPage(initialQuery: Record<string, string | undefined>) {
         border-radius: 14px;
         background: rgba(255, 255, 255, 0.86);
       }
-      .picked-icon img {
+      .icon-swatch {
+        width: 42px;
+        height: 42px;
+        border-radius: 12px;
+        display: grid;
+        place-items: center;
+        background:
+          linear-gradient(135deg, rgba(24, 38, 71, 0.96), rgba(59, 112, 244, 0.76)),
+          linear-gradient(45deg, rgba(255, 255, 255, 0.10) 25%, transparent 25%, transparent 50%, rgba(255, 255, 255, 0.10) 50%, rgba(255, 255, 255, 0.10) 75%, transparent 75%, transparent);
+        background-size: auto, 12px 12px;
+        box-shadow:
+          inset 0 0 0 1px rgba(255, 255, 255, 0.16),
+          0 8px 16px rgba(22, 35, 58, 0.16);
+      }
+      .picked-icon img,
+      .icon-card img {
         width: 36px;
         height: 36px;
         object-fit: contain;
+        filter:
+          drop-shadow(0 0 1px rgba(22, 35, 58, 0.9))
+          drop-shadow(0 3px 8px rgba(255, 255, 255, 0.24));
       }
       .picked-icon span {
         width: 100%;
@@ -269,10 +287,9 @@ function renderEditorPage(initialQuery: Record<string, string | undefined>) {
         box-shadow: 0 12px 22px rgba(47, 109, 246, 0.18);
         background: #eef4ff;
       }
-      .icon-card img {
-        width: 34px;
-        height: 34px;
-        object-fit: contain;
+      .icon-card .icon-swatch {
+        width: 40px;
+        height: 40px;
       }
       .icon-card span {
         width: 100%;
@@ -577,7 +594,7 @@ function renderEditorPage(initialQuery: Record<string, string | undefined>) {
 
       function getSelectedIconKeys() {
         const parsed = parseIconKeys(iconInput.value);
-        return parsed.length > 0 ? parsed : [APP_CONFIG.defaultIconKey];
+        return parsed.length > 0 ? parsed : [];
       }
 
       function getColumnsPerRow() {
@@ -661,7 +678,7 @@ function renderEditorPage(initialQuery: Record<string, string | undefined>) {
           }
         }
 
-        const shouldAddMainLink = selectedKeys.length <= 1 || Boolean(text) || shouldUseSlot;
+        const shouldAddMainLink = Boolean(text) || shouldUseSlot || selectedKeys.length === 1;
         let mainUrl = "";
 
         if (shouldAddMainLink) {
@@ -694,6 +711,7 @@ function renderEditorPage(initialQuery: Record<string, string | undefined>) {
 
         return {
           cols,
+          isEmpty: lines.length === 0,
           selectedKeys,
           text,
           jumpUrl,
@@ -722,19 +740,19 @@ function renderEditorPage(initialQuery: Record<string, string | undefined>) {
           : "只用一个表情时不需要分行，这个设置会在你选了多个表情后自动生效。";
 
         if (items.length === 0) {
-          selectedIcons.innerHTML = '<div class="selected-placeholder">还没有选择表情，建议至少保留一个默认图标。</div>';
-          selectedIconsSummary.textContent = "";
+          selectedIcons.innerHTML = '<div class="selected-placeholder">还没有选择表情。你可以保持空白，只用文案；也可以点下面的小表情自己选。</div>';
+          selectedIconsSummary.textContent = "当前没有选中任何表情。";
           return;
         }
 
         selectedIcons.innerHTML = items
           .map((item) => {
             const imageHtml = item.imageUrl
-              ? '<img src="' +
+              ? '<div class="icon-swatch"><img src="' +
                 escapeHtml(item.imageUrl) +
                 '" alt="' +
                 escapeHtml(item.label) +
-                '" referrerpolicy="no-referrer" />'
+                '" referrerpolicy="no-referrer" /></div>'
               : "";
             return '<div class="picked-icon">' + imageHtml + "<span>" + escapeHtml(item.label) + "</span></div>";
           })
@@ -765,11 +783,11 @@ function renderEditorPage(initialQuery: Record<string, string | undefined>) {
               '" title="' +
               escapeHtml(item.label) +
               '">' +
-              '<img loading="lazy" src="' +
+              '<div class="icon-swatch"><img loading="lazy" src="' +
               escapeHtml(item.imageUrl) +
               '" alt="' +
               escapeHtml(item.label) +
-              '" referrerpolicy="no-referrer" />' +
+              '" referrerpolicy="no-referrer" /></div>' +
               "<span>" +
               escapeHtml(item.label) +
               "</span>" +
@@ -788,7 +806,7 @@ function renderEditorPage(initialQuery: Record<string, string | undefined>) {
         const query = APP_CONFIG.initialQuery || {};
         const hasManualText = Boolean(query.t);
         const hasSlot = query.slot === "current_task";
-        const initialKeys = parseIconKeys(query.ks || query.k || APP_CONFIG.defaultIconKey);
+        const initialKeys = parseIconKeys(query.ks || query.k || "");
 
         state.mode = hasSlot && !hasManualText ? "current_task" : "single";
         textInput.value = query.t || "";
@@ -835,6 +853,14 @@ function renderEditorPage(initialQuery: Record<string, string | undefined>) {
 
         clearTimeout(debounceTimer);
         debounceTimer = setTimeout(async () => {
+          if (draft.isEmpty) {
+            previewLink.textContent = "还没生成签名";
+            previewLink.href = draft.editorUrl;
+            previewMeta.textContent = "当前既没有文案，也没有表情。先写点文字，或者选一个喜欢的小表情。";
+            previewNotice.textContent = "如果你只想做文字签名，可以直接填外显文案；如果想做表情签名，再从下方选择。";
+            return;
+          }
+
           if (!draft.mainUrl && draft.selectedKeys.length > 1) {
             previewLink.textContent = "已选择 " + draft.selectedKeys.length + " 个小表情";
             previewLink.href = draft.openUrl;
@@ -920,7 +946,7 @@ function renderEditorPage(initialQuery: Record<string, string | undefined>) {
           ? currentKeys.filter((item) => item !== key)
           : currentKeys.concat(key);
 
-        setSelectedIconKeys(nextKeys.length > 0 ? nextKeys : [APP_CONFIG.defaultIconKey]);
+        setSelectedIconKeys(nextKeys);
         update();
       });
 
@@ -935,7 +961,7 @@ function renderEditorPage(initialQuery: Record<string, string | undefined>) {
       });
 
       clearIcons.addEventListener("click", () => {
-        setSelectedIconKeys([APP_CONFIG.defaultIconKey]);
+        setSelectedIconKeys([]);
         update();
       });
 

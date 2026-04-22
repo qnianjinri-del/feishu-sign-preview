@@ -82,6 +82,9 @@ test("GET /editor returns the self-service editor page with single/multi icon gu
     assert.match(response.body, /支持逗号分隔多个 key/);
     assert.match(response.body, /img_v3_02e1_cf42a888-b257-4f5a-9ad7-22317623e75g/);
     assert.match(response.body, /current_task/);
+    assert.match(response.body, /return parsed.length > 0 \? parsed : \[\];/);
+    assert.match(response.body, /query\.ks \|\| query\.k \|\| ""/);
+    assert.match(response.body, /icon-swatch/);
   } finally {
     await app.close();
   }
