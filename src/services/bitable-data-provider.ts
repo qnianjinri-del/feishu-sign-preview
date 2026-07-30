@@ -26,6 +26,8 @@ export interface BitableDataProviderOptions {
   viewId?: string;
   resultFieldName?: string;
   statusFieldName?: string;
+  orderFieldName?: string;
+  parentIdFieldName?: string;
   targetStatus?: string;
   cacheTtlSeconds?: number;
   requestTimeoutMs?: number;
@@ -134,6 +136,8 @@ export class BitableDataProvider implements DataProvider {
       viewId: options.viewId ?? config.bitableViewId,
       resultFieldName: options.resultFieldName ?? config.bitableResultFieldName,
       statusFieldName: options.statusFieldName ?? config.bitableStatusFieldName,
+      orderFieldName: options.orderFieldName ?? config.bitableOrderFieldName,
+      parentIdFieldName: options.parentIdFieldName ?? config.bitableParentIdFieldName,
       targetStatus: options.targetStatus ?? config.bitableTargetStatus,
       cacheTtlSeconds: options.cacheTtlSeconds ?? config.bitableCacheTtlSeconds,
       requestTimeoutMs: options.requestTimeoutMs ?? config.bitableRequestTimeoutMs,
@@ -164,11 +168,15 @@ export class BitableDataProvider implements DataProvider {
     return this.inflight;
   }
 
+  invalidate(): void {
+    this.cache = undefined;
+  }
+
   private async refreshCurrentTask(): Promise<string | undefined> {
-    if (!this.options.appId || !this.options.appSecret) {
+    if (!this.options.appId || !this.options.appSecret || !this.options.appToken || !this.options.tableId) {
       if (!this.hasWarnedAboutCredentials) {
         this.options.logger.warn?.(
-          "[BitableDataProvider] FEISHU_APP_ID or FEISHU_APP_SECRET is missing; slot=current_task will fall back.",
+          "[BitableDataProvider] Feishu credentials or Bitable identifiers are missing; slot=current_task will fall back.",
         );
         this.hasWarnedAboutCredentials = true;
       }
@@ -231,7 +239,27 @@ export class BitableDataProvider implements DataProvider {
     const url = new URL(
       `${this.options.apiBaseUrl}/bitable/v1/apps/${encodeURIComponent(this.options.appToken)}/tables/${encodeURIComponent(this.options.tableId)}/records/search`,
     );
-    url.searchParams.set("page_size", "1");
+    url.searchParams.set("page_size", "100");
+
+    const body: Record<string, unknown> = {
+      field_names: [
+        this.options.resultFieldName,
+        this.options.statusFieldName,
+        this.options.orderFieldName,
+        this.options.parentIdFieldName,
+      ],
+      filter: {
+        conjunction: "and",
+        conditions: [
+          {
+            field_name: this.options.statusFieldName,
+            operator: "is",
+            value: [this.options.targetStatus],
+          },
+        ],
+      },
+    };
+    if (this.options.viewId) body.view_id = this.options.viewId;
 
     const payload = await this.fetchJson(url.toString(), {
       method: "POST",
@@ -239,35 +267,29 @@ export class BitableDataProvider implements DataProvider {
         Authorization: `Bearer ${tenantAccessToken}`,
         "Content-Type": "application/json; charset=utf-8",
       },
-      body: JSON.stringify({
-        view_id: this.options.viewId,
-        field_names: [this.options.resultFieldName, this.options.statusFieldName],
-        filter: {
-          conjunction: "and",
-          conditions: [
-            {
-              field_name: this.options.statusFieldName,
-              operator: "is",
-              value: [this.options.targetStatus],
-            },
-          ],
-        },
-      }),
+      body: JSON.stringify(body),
     });
 
-    for (const item of getItems(payload)) {
+    const candidates = getItems(payload).flatMap((item, index) => {
       const fields = isRecord(item.fields) ? item.fields : undefined;
-      if (!fields) {
-        continue;
-      }
+      if (!fields) return [];
 
       const taskValue = normalizeFieldValue(fields[this.options.resultFieldName]);
-      if (taskValue) {
-        return taskValue;
-      }
-    }
+      if (!taskValue) return [];
+      if (normalizeFieldValue(fields[this.options.parentIdFieldName])) return [];
+      const rawOrder = fields[this.options.orderFieldName];
+      const order = typeof rawOrder === "number" && Number.isFinite(rawOrder)
+        ? rawOrder
+        : Number(normalizeFieldValue(rawOrder) ?? index);
+      return [{
+        text: taskValue,
+        order: Number.isFinite(order) ? order : index,
+      }];
+    }).sort((left, right) => left.order - right.order);
 
-    return this.options.noMatchValue;
+    const current = candidates[0];
+    if (!current) return this.options.noMatchValue;
+    return current.text;
   }
 
   private async fetchJson(url: string, init: RequestInit): Promise<unknown> {
@@ -302,7 +324,7 @@ export class BitableDataProvider implements DataProvider {
       return payload;
     } catch (error) {
       if (error instanceof Error && error.name === "AbortError") {
-        throw new Error(`Feishu API request timed out after ${this.options.requestTimeoutMs}ms.`);
+        throw new Error(`Feishu API request timed out after ${this.options.requestTimeoutMs}ms.`, { cause: error });
       }
 
       throw error;

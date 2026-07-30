@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync } from "fastify";
 
-import { config } from "../config.js";
+import { config, type AppConfig } from "../config.js";
 import { TimeoutError, withTimeout } from "../lib/async.js";
 import { createRequestLogMeta } from "../lib/logger.js";
 import { buildSourceUrlFromParams } from "../lib/url.js";
@@ -8,9 +8,12 @@ import { PreviewService } from "../services/preview-service.js";
 import type { PreviewContext, PreviewParamsInput } from "../types/index.js";
 import { previewDebugQuerySchema } from "../utils/validation.js";
 
-export function createDebugRoute(previewService: PreviewService): FastifyPluginAsync {
+export function createDebugRoute(previewService: PreviewService, appConfig: AppConfig = config): FastifyPluginAsync {
   return async (app) => {
     app.get("/api/debug/preview", async (request, reply) => {
+      if (appConfig.nodeEnv === "production") {
+        return reply.code(404).send({ error: "Not found." });
+      }
       const parsed = previewDebugQuerySchema.safeParse(request.query);
       if (!parsed.success) {
         return reply.code(400).send({
@@ -22,7 +25,7 @@ export function createDebugRoute(previewService: PreviewService): FastifyPluginA
       const input = parsed.data;
       const sourceUrl =
         input.url ??
-        buildSourceUrlFromParams(config.publicBaseUrl, {
+        buildSourceUrlFromParams(appConfig.publicBaseUrl, {
           t: input.t,
           k: input.k,
           u: input.u,
@@ -34,15 +37,15 @@ export function createDebugRoute(previewService: PreviewService): FastifyPluginA
         host: "debug",
       };
 
-      const logMeta = createRequestLogMeta(request, "/api/debug/preview", { sourceUrl });
+      const logMeta = createRequestLogMeta(request, "/api/debug/preview");
 
       try {
         const preview = await withTimeout(
           input.url
             ? previewService.buildFromSourceUrl(sourceUrl, context)
             : previewService.buildFromParams(input as PreviewParamsInput, context, sourceUrl),
-          config.debugTimeoutMs,
-          `Debug preview timed out after ${config.debugTimeoutMs}ms.`,
+          appConfig.debugTimeoutMs,
+          `Debug preview timed out after ${appConfig.debugTimeoutMs}ms.`,
         );
 
         request.log.info(logMeta, "Debug preview generated.");

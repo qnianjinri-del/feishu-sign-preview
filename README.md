@@ -1,4 +1,17 @@
-# 飞书个性签名 / 自定义链接预览服务
+# FloatList 任务模式个签助手
+
+一个把 macOS 桌面悬浮清单、飞书多维表格和飞书个性签名连接起来的开源项目。任务可在桌面端与多维表格之间双向同步，根事项的“在干”状态会自动展示为个性签名；子事项、受阻原因和历史记录仍保留在任务系统中。
+
+仓库包含两部分：
+
+| 目录 | 说明 |
+| --- | --- |
+| 仓库根目录 | Fastify 同步网关与飞书个性签名链接预览服务 |
+| [`desktop/`](desktop/) | Tauri 2 + React 实现的 macOS 悬浮任务清单 |
+
+完整桌面端安装、构建和使用教程见 [`desktop/README.md`](desktop/README.md)，系统架构见 [`desktop/docs/ARCHITECTURE.md`](desktop/docs/ARCHITECTURE.md)。
+
+## 飞书个性签名 / 自定义链接预览服务
 
 一个可私有部署的 Feishu / 飞书链接预览服务，用来复刻 `l.garyyang.work` 这类“图标 + 文本 + 点击跳转”的个性签名玩法，并在现有 `slot` 扩展位上接入飞书多维表格数据。
 
@@ -111,17 +124,30 @@ FEISHU_APP_ID=cli_xxx
 FEISHU_APP_SECRET=cli_secret_xxx
 FEISHU_VERIFICATION_TOKEN=your_verification_token
 FEISHU_ENCRYPT_KEY=
-BITABLE_APP_TOKEN=XLNaboeiCaFzN5sUtMfcVl9Mn8z
-BITABLE_TABLE_ID=tbl9MppZ1OXYKapw
-BITABLE_VIEW_ID=vewbgk85az
+BITABLE_APP_TOKEN=
+BITABLE_TABLE_ID=
+BITABLE_VIEW_ID=
 BITABLE_RESULT_FIELD_NAME=任务名
 BITABLE_STATUS_FIELD_NAME=任务状态
+BITABLE_SUBTASK_STATUS_FIELD_NAME=子状态
+BITABLE_CHILD_STATUS_FIELD_NAME=FloatList子事项状态
+BITABLE_SUBTASK_DATA_FIELD_NAME=FloatList子事项数据
+BITABLE_SYNC_ID_FIELD_NAME=FloatList同步ID
+BITABLE_ORDER_FIELD_NAME=FloatList顺序
+BITABLE_ARCHIVED_FIELD_NAME=FloatList归档
+BITABLE_PARENT_ID_FIELD_NAME=FloatList父事项ID
+BITABLE_BLOCKED_REASON_FIELD_NAME=FloatList受阻原因
 BITABLE_TARGET_STATUS=在干
 BITABLE_CACHE_TTL_SECONDS=60
 BITABLE_REQUEST_TIMEOUT_MS=1500
 MAX_TEXT_LENGTH=80
 HANDLER_TIMEOUT_MS=1500
 DEBUG_TIMEOUT_MS=2000
+FLOATLIST_CLIENT_TOKEN=请生成独立的高强度随机值
+FLOATLIST_SYNC_BODY_LIMIT=131072
+FLOATLIST_IDEMPOTENCY_TTL_SECONDS=3600
+FLOATLIST_RATE_LIMIT_WINDOW_SECONDS=60
+FLOATLIST_RATE_LIMIT_MAX_REQUESTS=120
 ```
 
 3. 安装依赖并启动：
@@ -139,6 +165,52 @@ curl http://127.0.0.1:3000/editor
 curl "http://127.0.0.1:3000/api/debug/preview?t=你好呀~&k=img_v3_xxx&u=https%3A%2F%2Fopen.feishu.cn"
 curl "http://127.0.0.1:3000/api/debug/preview?slot=current_task"
 ```
+
+生产环境会关闭 `/api/debug/preview`，返回 `404`，避免调试响应泄露签名正文或跳转地址。
+
+## FloatList 同步网关
+
+在多维表格中准备以下字段，并将 `任务状态` 的单选值设为 `待办 / 在干 / 受阻 / 已完成`。主表只保留根事项物理行：根状态写入 `任务状态`，父行的 `子状态` 显示当前子事项名称，完整子事项数组写入父行隐藏的 `FloatList子事项数据`。因此子事项不会重复占用表格行，也不会把“在干”写进根任务状态或签名：
+
+配置好本机 `.env` 后，可先运行 `npm run setup:bitable:check` 只读检查，再运行 `npm run setup:bitable` 幂等创建缺失的 FloatList 字段。脚本不会删除字段或修改现有记录；`任务状态` 的缺失选项只会提示，不会覆盖已有选项。
+
+旧版本已经生成过子事项物理行时，先运行 `npm run migrate:subtasks -- --check` 只读预检，再运行 `npm run migrate:subtasks`。迁移脚本会先复制到父行并重新读取核验，成功后才移除旧的重复子事项行。
+
+| 默认字段名 | 推荐类型 | 说明 |
+| --- | --- | --- |
+| `任务名` | 单行文本 | 事项正文 |
+| `任务状态` | 单选 | 根事项四态 |
+| `子状态` | 单行文本 | 父事项当前子事项名称；多个子项时只显示 doing 子项 |
+| `FloatList子事项数据` | 单行文本 | 父行内嵌的完整子事项 JSON，建议隐藏 |
+| `FloatList子事项状态` | 单行文本 | 旧版子事项物理行迁移兼容字段，建议隐藏 |
+| `FloatList同步ID` | 单行文本 | 稳定 ID；空值会由服务端补写 |
+| `FloatList顺序` | 数字 | 同级排序 |
+| `FloatList归档` | 复选框 | 软删除与恢复 |
+| `FloatList父事项ID` | 单行文本 | 一层子事项的父 ID |
+| `FloatList受阻原因` | 多行文本 | 当前卡点 |
+
+所有同步接口都需要独立的 `FLOATLIST_CLIENT_TOKEN`，不要复用飞书密钥。
+
+```bash
+# 存活与配置状态
+curl http://127.0.0.1:3000/health/live
+curl http://127.0.0.1:3000/health/ready
+
+# 获取权威快照；后续请求可把响应 ETag 放入 If-None-Match
+curl \
+  -H "Authorization: Bearer $FLOATLIST_CLIENT_TOKEN" \
+  http://127.0.0.1:3000/api/floatlist/v1/tasks
+
+# 提交幂等变更
+curl -X POST \
+  -H "Authorization: Bearer $FLOATLIST_CLIENT_TOKEN" \
+  -H "Idempotency-Key: example-operation-id" \
+  -H "Content-Type: application/json" \
+  -d '{"operations":[{"operationId":"example-operation-id","type":"set_doing","taskId":"stable-task-id"}]}' \
+  http://127.0.0.1:3000/api/floatlist/v1/mutations
+```
+
+支持 `create`、`create_subtask`、`update_text`、`set_todo`、`set_doing`、`set_blocked`、`set_done`、`reorder`、`archive` 和 `restore`。写请求在单个服务实例内串行执行；相同 `Idempotency-Key` 在有效期内只执行一次。父事项存在未完成子事项时不能完成；子事项重新推进或新增未完成子事项会自动重开已完成的父事项。子事项设为 `doing` 不改变根事项或签名，只替换同父项的旧 `doing` 子事项并刷新父行 `子状态`。
 
 ## Docker 启动
 
@@ -294,7 +366,7 @@ https://sign.example.com/?slot=current_task
 预期结果：
 
 - 签名显示图标和文案
-- `slot=current_task` 会从多维表格中读取“任务状态 = 在干”的第一条记录
+- `slot=current_task` 只从根事项中读取“任务状态 = 在干”的第一条记录；子事项完整数据存于父行隐藏字段，不会直接进入签名
 - 如果配置了 `u`，点击后跳到 `u`
 - 如果没有配置 `u`，点击后默认回到 `/editor`
 
@@ -322,6 +394,9 @@ https://sign.example.com/?slot=current_task
 - `BITABLE_VIEW_ID`：视图 ID
 - `BITABLE_RESULT_FIELD_NAME`：结果字段名，默认 `任务名`
 - `BITABLE_STATUS_FIELD_NAME`：状态字段名，默认 `任务状态`
+- `BITABLE_SUBTASK_STATUS_FIELD_NAME`：父行当前子事项名称字段，默认 `子状态`
+- `BITABLE_SUBTASK_DATA_FIELD_NAME`：父行内嵌子事项 JSON 字段，默认 `FloatList子事项数据`
+- `BITABLE_CHILD_STATUS_FIELD_NAME`：旧版子事项物理行迁移兼容字段，默认 `FloatList子事项状态`
 - `BITABLE_TARGET_STATUS`：目标状态值，默认 `在干`
 - `BITABLE_CACHE_TTL_SECONDS`：slot 缓存秒数，默认 `60`
 - `BITABLE_REQUEST_TIMEOUT_MS`：飞书接口超时，默认 `1500`

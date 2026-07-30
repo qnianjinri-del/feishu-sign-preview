@@ -1,0 +1,24 @@
+[package]
+name = "floatlist"
+version = "0.1.0"
+description = "极简 macOS 桌面悬浮工作清单"
+authors = ["FloatList"]
+edition = "2021"
+
+[lib]
+name = "floatlist_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+security-framework = "3.7"
+reqwest = { version = "0.13.4", default-features = false, features = ["json", "rustls"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tauri = { version = "2", features = ["tray-icon", "image-png", "macos-private-api"] }
+tauri-plugin-autostart = "2"
+tauri-plugin-global-shortcut = "2"
+tauri-plugin-store = "2"
+tauri-plugin-window-state = "2"

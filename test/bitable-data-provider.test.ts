@@ -3,6 +3,13 @@ import test from "node:test";
 
 import { BitableDataProvider } from "../src/services/bitable-data-provider.ts";
 
+const bitableOptions = {
+  appId: "cli_xxx",
+  appSecret: "secret_xxx",
+  appToken: "app_xxx",
+  tableId: "tbl_xxx",
+};
+
 function createJsonResponse(payload: unknown, status = 200) {
   return {
     ok: status >= 200 && status < 300,
@@ -17,8 +24,8 @@ function createJsonResponse(payload: unknown, status = 200) {
 test("BitableDataProvider returns the first matching current task", async () => {
   const requests: Array<{ url: string; init?: RequestInit }> = [];
   const provider = new BitableDataProvider({
-    appId: "cli_xxx",
-    appSecret: "secret_xxx",
+    ...bitableOptions,
+    viewId: "vew_test",
     logger: {},
     fetchFn: async (url, init) => {
       requests.push({ url, init });
@@ -54,19 +61,18 @@ test("BitableDataProvider returns the first matching current task", async () => 
 
   assert.equal(value, "进阶规划最新的作业模板");
   assert.equal(requests.length, 2);
-  assert.match(requests[1]?.url ?? "", /\/records\/search\?page_size=1/);
+  assert.match(requests[1]?.url ?? "", /\/records\/search\?page_size=100/);
 
   const body = JSON.parse(String(requests[1]?.init?.body ?? "{}"));
-  assert.equal(body.view_id, "vewbgk85az");
-  assert.deepEqual(body.field_names, ["任务名", "任务状态"]);
+  assert.equal(body.view_id, "vew_test");
+  assert.deepEqual(body.field_names, ["任务名", "任务状态", "FloatList顺序", "FloatList父事项ID"]);
   assert.equal(body.filter.conditions[0].field_name, "任务状态");
   assert.deepEqual(body.filter.conditions[0].value, ["在干"]);
 });
 
 test("BitableDataProvider returns 空闲中 when no record matches", async () => {
   const provider = new BitableDataProvider({
-    appId: "cli_xxx",
-    appSecret: "secret_xxx",
+    ...bitableOptions,
     logger: {},
     fetchFn: async (url) => {
       if (url.includes("/auth/v3/tenant_access_token/internal")) {
@@ -96,8 +102,7 @@ test("BitableDataProvider returns 空闲中 when no record matches", async () =>
 
 test("BitableDataProvider keeps a handler-safe fallback when Feishu API fails", async () => {
   const provider = new BitableDataProvider({
-    appId: "cli_xxx",
-    appSecret: "secret_xxx",
+    ...bitableOptions,
     logger: {},
     fetchFn: async () => {
       throw new Error("network error");
@@ -115,8 +120,7 @@ test("BitableDataProvider uses cache within the TTL window", async () => {
   let now = 1_000;
   let fetchCount = 0;
   const provider = new BitableDataProvider({
-    appId: "cli_xxx",
-    appSecret: "secret_xxx",
+    ...bitableOptions,
     cacheTtlSeconds: 60,
     now: () => now,
     logger: {},
@@ -159,4 +163,41 @@ test("BitableDataProvider uses cache within the TTL window", async () => {
   assert.equal(first, "进阶规划最新的作业模板");
   assert.equal(second, "进阶规划最新的作业模板");
   assert.equal(fetchCount, 2);
+});
+
+test("BitableDataProvider ignores child rows even when a legacy child has root doing status", async () => {
+  let searchCount = 0;
+  const provider = new BitableDataProvider({
+    ...bitableOptions,
+    logger: {},
+    fetchFn: async (url) => {
+      if (url.includes("/auth/v3/tenant_access_token/internal")) {
+        return createJsonResponse({ code: 0, tenant_access_token: "tenant_token", expire: 7200 });
+      }
+      searchCount += 1;
+      return createJsonResponse({
+        code: 0,
+        data: {
+          items: [
+            { fields: { 任务名: "根事项", 任务状态: "在干", FloatList顺序: 9 } },
+            {
+              fields: {
+                任务名: "当前子事项",
+                任务状态: "在干",
+                FloatList顺序: 1,
+                FloatList父事项ID: "parent-id",
+              },
+            },
+          ],
+        },
+      });
+    },
+  });
+
+  const value = await provider.getSlotValue("current_task", {
+    sourceUrl: "http://127.0.0.1:3000/?slot=current_task",
+  });
+
+  assert.equal(value, "根事项");
+  assert.equal(searchCount, 1);
 });

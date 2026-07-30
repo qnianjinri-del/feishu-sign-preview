@@ -26,7 +26,6 @@ export function createHandlerRoute(previewService: PreviewService): FastifyPlugi
       const eventType = payload?.header?.event_type ?? payload?.type ?? "unknown";
       const logMeta = createRequestLogMeta(request, "/api/handler", {
         eventType,
-        sourceUrl,
       });
 
       request.log.info(logMeta, "Received Feishu callback.");

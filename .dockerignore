@@ -4,3 +4,6 @@ dist
 .gitignore
 .env
 npm-debug.log*
+desktop
+coverage
+.DS_Store

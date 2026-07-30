@@ -9,6 +9,7 @@ export function createLoggerOptions(nodeEnv: string): NonNullable<FastifyServerO
     },
     redact: {
       paths: [
+        "req.url",
         "req.headers.authorization",
         "req.headers.cookie",
         "req.headers.x-lark-signature",
