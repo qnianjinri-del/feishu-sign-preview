@@ -476,7 +476,7 @@ function renderEditorPage(initialQuery: Record<string, string | undefined>) {
 
             <div class="readonly" id="slot-readonly" hidden>
               <strong>当前任务模式</strong>
-              <div class="hint">会读取多维表格指定视图里“任务状态 = 在干”的第一条记录，把“任务名”显示成签名文字。</div>
+              <div class="hint">会读取多维表格指定视图里根事项“任务状态 = 在干”的第一条记录，把“任务名”显示成签名文字；父行“子状态”只显示当前子事项名称，子事项不会直接进入签名。</div>
             </div>
 
             <div class="field">

@@ -5,3 +5,9 @@ npm-debug.log*
 
 tmp-app.log
 tmp-app.err.log
+.DS_Store
+coverage
+desktop/src-tauri/target
+desktop/src-tauri/gen
+*.dmg
+*.app

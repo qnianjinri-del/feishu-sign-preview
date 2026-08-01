@@ -7,7 +7,10 @@ process.env.DEFAULT_JUMP_URL = "http://127.0.0.1:3000/";
 process.env.FEISHU_VERIFICATION_TOKEN = "";
 process.env.FEISHU_ENCRYPT_KEY = "";
 
-const { buildApp } = await import("../src/app.ts");
+const [{ buildApp }, { config }] = await Promise.all([
+  import("../src/app.ts"),
+  import("../src/config.ts"),
+]);
 
 test("POST /api/handler returns url_verification challenge", async () => {
   const app = await buildApp();
@@ -105,6 +108,17 @@ test("GET /api/debug/preview returns resolved preview payload", async () => {
     assert.equal(body.resolved.iconKey, "img_v3_xxx");
     assert.equal(body.resolved.jumpUrl, "https://open.feishu.cn");
     assert.equal("url" in body.feishuResponse.inline, false);
+  } finally {
+    await app.close();
+  }
+});
+
+test("GET /api/debug/preview is disabled in production", async () => {
+  const app = await buildApp({ appConfig: { ...config, nodeEnv: "production" } });
+
+  try {
+    const response = await app.inject({ method: "GET", url: "/api/debug/preview?t=secret" });
+    assert.equal(response.statusCode, 404);
   } finally {
     await app.close();
   }
