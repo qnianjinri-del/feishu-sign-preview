@@ -2,6 +2,10 @@
 
 一个把 macOS 桌面悬浮清单、飞书多维表格和飞书个性签名连接起来的开源项目。任务可在桌面端与多维表格之间双向同步，根事项的“在干”状态会自动展示为个性签名；子事项、受阻原因和历史记录仍保留在任务系统中。
 
+[![CI](https://github.com/qnianjinri-del/feishu-sign-preview/actions/workflows/ci.yml/badge.svg)](https://github.com/qnianjinri-del/feishu-sign-preview/actions/workflows/ci.yml)
+
+> 目前仓库提供源码和自托管部署方式。桌面端是 macOS 应用，飞书同步网关需要单独部署；两者可以只使用本地清单，也可以按需连接到自己的飞书多维表格。
+
 仓库包含两部分：
 
 | 目录 | 说明 |
@@ -10,6 +14,51 @@
 | [`desktop/`](desktop/) | Tauri 2 + React 实现的 macOS 悬浮任务清单 |
 
 完整桌面端安装、构建和使用教程见 [`desktop/README.md`](desktop/README.md)，系统架构见 [`desktop/docs/ARCHITECTURE.md`](desktop/docs/ARCHITECTURE.md)。
+
+## 快速开始
+
+### 只使用桌面清单
+
+```bash
+cd desktop
+pnpm install
+pnpm tauri dev
+```
+
+### 启动飞书同步网关
+
+```bash
+cp .env.example .env
+# 编辑 .env，至少填写飞书应用凭证和 FLOATLIST_CLIENT_TOKEN
+npm install
+npm run dev
+```
+
+桌面端默认关闭同步；需要同步时，在应用设置中填写网关地址和同一个 `FLOATLIST_CLIENT_TOKEN`。完整的飞书权限、字段配置、迁移和部署说明见下方“FloatList 同步网关”章节。
+
+## 仓库导航
+
+- [`desktop/README.md`](desktop/README.md)：桌面端安装、快捷键、同步设置和构建方式
+- [`desktop/docs/ARCHITECTURE.md`](desktop/docs/ARCHITECTURE.md)：数据模型、同步协议和安全边界
+- [`desktop/docs/MANUAL_ACCEPTANCE.md`](desktop/docs/MANUAL_ACCEPTANCE.md)：发布前手工验收清单
+- [`CONTRIBUTING.md`](CONTRIBUTING.md)：本地开发、测试和提交规范
+- [`SECURITY.md`](SECURITY.md)：凭证存储和漏洞报告方式
+
+## 开发检查
+
+提交前建议分别在仓库根目录和 `desktop/` 目录运行：
+
+```bash
+# 网关
+npm run check && npm test && npm run build
+
+# 桌面端
+cd desktop
+pnpm lint && pnpm test && pnpm build
+cargo check --manifest-path src-tauri/Cargo.toml
+```
+
+不要提交 `.env`、飞书 App Secret、Client token、`node_modules`、构建产物或 `src-tauri/target`。
 
 ## 飞书个性签名 / 自定义链接预览服务
 
