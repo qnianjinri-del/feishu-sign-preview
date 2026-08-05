@@ -20,6 +20,8 @@
     "dev": "tsx watch src/app.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/app.js",
+    "install:sync-gateway": "npm run build && node scripts/install-macos-launch-agent.mjs",
+    "uninstall:sync-gateway": "node scripts/uninstall-macos-launch-agent.mjs",
     "setup:bitable": "node scripts/setup-bitable-fields.mjs",
     "setup:bitable:check": "node scripts/setup-bitable-fields.mjs --check",
     "migrate:subtasks": "node scripts/migrate-embedded-subtasks.mjs",

@@ -89,6 +89,8 @@ src-tauri/target/release/bundle/dmg/FloatList_0.1.0_aarch64.dmg
 
 首次连接且本地、飞书两边都有事项时，应用不会自动覆盖任何一边，而是要求选择“采用飞书”或“合并本地事项”。断网时本地操作继续可用，变更进入持久化 outbox，恢复连接后按顺序重试。服务端部署和环境变量参见 [仓库根目录 README](../README.md)。
 
+如果同步服务运行在本机 `127.0.0.1:3000`，建议在服务端目录执行 `npm run install:sync-gateway` 安装 macOS 登录启动项。FloatList 自身的“开机启动”只负责启动桌面应用，不会自动启动 Node 同步网关；网关安装脚本会把进程异常退出后的自动拉起和日志记录交给 macOS LaunchAgent。
+
 ## 已知限制
 
 - 全屏应用上方能否显示受 macOS Space 和全屏窗口策略限制，不使用私有高风险层级 hack。

@@ -36,6 +36,14 @@ npm run dev
 
 桌面端默认关闭同步；需要同步时，在应用设置中填写网关地址和同一个 `FLOATLIST_CLIENT_TOKEN`。完整的飞书权限、字段配置、迁移和部署说明见下方“FloatList 同步网关”章节。
 
+macOS 本机长期运行时，可在配置好 `.env` 后执行下面的命令，让同步网关登录后自动启动并在异常退出时自动拉起：
+
+```bash
+npm run install:sync-gateway
+```
+
+日志位于 `~/Library/Logs/FloatList/sync-gateway.log`；如需取消自动启动，执行 `npm run uninstall:sync-gateway`。该配置只引用本机 `.env`，不会把飞书密钥写入 LaunchAgent 文件。
+
 ## 仓库导航
 
 - [`desktop/README.md`](desktop/README.md)：桌面端安装、快捷键、同步设置和构建方式
