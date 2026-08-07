@@ -104,8 +104,15 @@ export class TaskSyncService {
 
   private async applyOperation(tasks: RepositoryTask[], operation: SyncMutation): Promise<RepositoryTask[]> {
     if (operation.type === "create" || operation.type === "create_subtask") {
-      if (tasks.some((task) => task.id === operation.task.id)) {
-        throw new SyncValidationError(`Task ${operation.task.id} already exists.`);
+      const existing = tasks.find((task) => task.id === operation.task.id);
+      if (existing) {
+        const requestedParentId = "parentId" in operation.task ? operation.task.parentId : undefined;
+        if (existing.text !== operation.task.text || (existing.parentId ?? undefined) !== requestedParentId) {
+          throw new SyncValidationError(`Task ${operation.task.id} already exists with different content.`);
+        }
+        // A client may retry after the create reached Feishu but its response was lost.
+        // Treat the matching create as a no-op so the rest of the batch can finish.
+        return tasks;
       }
       let next = tasks;
       let parent: RepositoryTask | undefined;

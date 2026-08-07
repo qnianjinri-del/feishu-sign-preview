@@ -81,6 +81,43 @@ test("TaskSyncService shows a single child name and clears ambiguous idle child 
   ]);
 });
 
+test("retries an already persisted create as an idempotent no-op", async () => {
+  const existing = { ...task("created", "todo"), text: "已写入的事项" };
+  const repository = new FakeTaskRepository([existing]);
+  const service = new TaskSyncService(repository);
+
+  const snapshot = await service.applyMutations({
+    operations: [
+      {
+        operationId: "retry-create",
+        type: "create",
+        task: { id: existing.id, text: existing.text, status: "todo", order: existing.order },
+      },
+      { operationId: "finish-after-retry", type: "set_done", taskId: existing.id },
+    ],
+  }, "retry-create");
+
+  assert.equal(snapshot.tasks.length, 1);
+  assert.equal(snapshot.tasks[0]?.status, "done");
+  assert.equal(repository.updates.length, 1);
+});
+
+test("rejects a create retry when the stable ID belongs to different content", async () => {
+  const repository = new FakeTaskRepository([task("same-id")]);
+  const service = new TaskSyncService(repository);
+
+  await assert.rejects(
+    service.applyMutations({
+      operations: [{
+        operationId: "conflicting-create",
+        type: "create",
+        task: { id: "same-id", text: "另一件事", status: "todo", order: 0 },
+      }],
+    }, "conflicting-create"),
+    /different content/,
+  );
+});
+
 test("set_doing is unique and retries are idempotent", async () => {
   const repository = new FakeTaskRepository([task("a", "doing"), task("b", "todo", 1)]);
   let invalidations = 0;
