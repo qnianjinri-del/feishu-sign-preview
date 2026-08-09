@@ -3,34 +3,18 @@ name: CI
 on:
   pull_request:
   push:
-    branches:
-      - main
+    branches: [main]
 
 permissions:
   contents: read
 
 jobs:
-  gateway:
+  quality:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
         with:
-          node-version: 22
-          cache: npm
-      - run: npm ci
-      - run: npm run check
-      - run: npm test
-      - run: npm run build
-      - run: npm run audit
-
-  desktop:
-    runs-on: macos-14
-    defaults:
-      run:
-        working-directory: desktop
-    steps:
-      - uses: actions/checkout@v7
+          fetch-depth: 0
       - uses: pnpm/action-setup@v6
         with:
           version: 11.9.0
@@ -38,12 +22,51 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
-          cache-dependency-path: desktop/pnpm-lock.yaml
-      - uses: dtolnay/rust-toolchain@stable
       - run: pnpm install --frozen-lockfile
+      - run: pnpm check
       - run: pnpm lint
-      - run: pnpm test
+      - run: pnpm test:coverage
       - run: pnpm build
-      - run: pnpm audit
-      - run: cargo check --manifest-path src-tauri/Cargo.toml
-      - run: cargo test --manifest-path src-tauri/Cargo.toml
+      - run: pnpm audit --audit-level=high
+
+  rust:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - run: cargo fmt --manifest-path apps/desktop/src-tauri/Cargo.toml -- --check
+      - run: cargo check --manifest-path apps/desktop/src-tauri/Cargo.toml
+      - run: cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml
+      - run: cargo clippy --manifest-path apps/desktop/src-tauri/Cargo.toml --all-targets -- -D warnings
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Build gateway image
+        run: docker build -t floatlist-gateway:ci .
+      - name: Smoke-test health endpoint
+        shell: bash
+        run: |
+          set -euo pipefail
+          container_id="$(docker run -d -p 3000:3000 floatlist-gateway:ci)"
+          trap 'docker logs "$container_id"; docker rm -f "$container_id"' EXIT
+          for attempt in {1..20}; do
+            if curl --fail --silent http://127.0.0.1:3000/health/live >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          exit 1
+
+  secrets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

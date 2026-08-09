@@ -4,6 +4,10 @@ dist
 .gitignore
 .env
 npm-debug.log*
-desktop
+apps/desktop
+apps/gateway/dist
+apps/desktop/dist
+apps/desktop/src-tauri/target
+packages/contracts/dist
 coverage
 .DS_Store

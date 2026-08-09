@@ -1,0 +1,48 @@
+{
+  "name": "@floatlist/gateway",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "description": "FloatList task sync gateway and Feishu signature preview service.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/qnianjinri-del/feishu-sign-preview.git"
+  },
+  "bugs": {
+    "url": "https://github.com/qnianjinri-del/feishu-sign-preview/issues"
+  },
+  "homepage": "https://github.com/qnianjinri-del/feishu-sign-preview#readme",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "scripts": {
+    "dev": "tsx watch src/app.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/app.js",
+    "install:sync-gateway": "pnpm build && node scripts/install-macos-launch-agent.mjs",
+    "uninstall:sync-gateway": "node scripts/uninstall-macos-launch-agent.mjs",
+    "setup:bitable": "node scripts/setup-bitable-fields.mjs",
+    "setup:bitable:check": "node scripts/setup-bitable-fields.mjs --check",
+    "doctor": "node scripts/doctor.mjs",
+    "migrate:subtasks": "node scripts/migrate-embedded-subtasks.mjs",
+    "check": "tsc --noEmit -p tsconfig.json",
+    "lint": "eslint src test --max-warnings=0",
+    "test": "node --test --import tsx test/*.test.ts",
+    "test:coverage": "c8 --check-coverage --lines 80 --functions 80 --statements 80 --branches 70 --exclude 'src/data/**' --exclude 'src/editor/**' node --test --import tsx test/*.test.ts"
+  },
+  "dependencies": {
+    "@floatlist/contracts": "workspace:*",
+    "@larksuiteoapi/node-sdk": "^1.42.0",
+    "dotenv": "^16.4.5",
+    "fastify": "^5.11.3",
+    "zod": "3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.1",
+    "c8": "10.1.3",
+    "eslint": "10.8.1",
+    "tsx": "^4.23.11",
+    "typescript": "5.9.3"
+  }
+}

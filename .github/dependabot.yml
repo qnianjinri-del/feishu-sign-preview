@@ -2,29 +2,27 @@ version: 2
 updates:
   - package-ecosystem: npm
     directory: "/"
-    schedule:
-      interval: weekly
+    schedule: { interval: weekly }
     groups:
-      gateway-dependencies:
+      workspace-minor-updates:
         patterns: ["*"]
-  - package-ecosystem: npm
-    directory: "/desktop"
-    schedule:
-      interval: weekly
-    groups:
-      desktop-dependencies:
-        patterns: ["*"]
+        update-types: ["minor", "patch"]
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: cargo
-    directory: "/desktop/src-tauri"
-    schedule:
-      interval: weekly
+    directory: "/apps/desktop/src-tauri"
+    schedule: { interval: weekly }
     groups:
-      rust-dependencies:
+      rust-minor-updates:
         patterns: ["*"]
+        update-types: ["minor", "patch"]
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: github-actions
     directory: "/"
-    schedule:
-      interval: weekly
+    schedule: { interval: weekly }
     groups:
       actions:
         patterns: ["*"]

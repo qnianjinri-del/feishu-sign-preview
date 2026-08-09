@@ -3,18 +3,26 @@ name: macOS Release
 on:
   workflow_dispatch:
   push:
-    tags:
-      - "v*"
+    tags: ["v*"]
 
 permissions:
   contents: write
 
 jobs:
   build-macos:
-    runs-on: macos-14
-    defaults:
-      run:
-        working-directory: desktop
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-14
+            arch: aarch64
+            target: aarch64-apple-darwin
+            macho: arm64
+          - runner: macos-15-intel
+            arch: x64
+            target: x86_64-apple-darwin
+            macho: x86_64
+    runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
@@ -24,39 +32,70 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
-          cache-dependency-path: desktop/pnpm-lock.yaml
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
       - run: pnpm install --frozen-lockfile
-      - run: pnpm lint
-      - run: pnpm test
-      - run: pnpm audit --audit-level=high
-      - run: cargo test --manifest-path src-tauri/Cargo.toml
+      - run: pnpm check
+      - run: pnpm --filter @floatlist/desktop test
       - name: Build ad-hoc signed app and DMG
-        run: pnpm tauri build --bundles app,dmg --ci
+        run: pnpm --filter @floatlist/desktop tauri build --target ${{ matrix.target }} --bundles app,dmg --ci
       - name: Verify and collect artifacts
         shell: bash
+        env:
+          BUILD_TARGET: ${{ matrix.target }}
+          RELEASE_ARCH: ${{ matrix.arch }}
+          EXPECTED_MACHO: ${{ matrix.macho }}
         run: |
           set -euo pipefail
-          app_path="$(find src-tauri/target/release/bundle/macos -maxdepth 1 -name '*.app' -print -quit)"
-          dmg_path="$(find src-tauri/target/release/bundle/dmg -maxdepth 1 -name '*.dmg' -print -quit)"
+          bundle_dir="apps/desktop/src-tauri/target/${BUILD_TARGET}/release/bundle"
+          app_path="$(find "$bundle_dir/macos" -maxdepth 1 -name '*.app' -print -quit)"
+          dmg_path="$(find "$bundle_dir/dmg" -maxdepth 1 -name '*.dmg' -print -quit)"
           test -n "$app_path"
           test -n "$dmg_path"
           codesign --verify --deep --strict "$app_path"
           hdiutil verify "$dmg_path"
+          app_binary="$(find "$app_path/Contents/MacOS" -type f -perm -111 -print -quit)"
+          test -n "$app_binary"
+          file "$app_binary" | grep -q "$EXPECTED_MACHO"
+          "$app_binary" >"$RUNNER_TEMP/floatlist-smoke.log" 2>&1 &
+          smoke_pid="$!"
+          sleep 5
+          if ! kill -0 "$smoke_pid" 2>/dev/null; then
+            cat "$RUNNER_TEMP/floatlist-smoke.log"
+            exit 1
+          fi
+          kill "$smoke_pid"
+          wait "$smoke_pid" || true
           mkdir -p release-assets
-          version="$(node -p "JSON.parse(require('fs').readFileSync('src-tauri/tauri.conf.json', 'utf8')).version")"
-          cp "$dmg_path" "release-assets/FloatList_${version}_aarch64.dmg"
-          ditto -c -k --sequesterRsrc --keepParent "$app_path" "release-assets/FloatList_${version}_aarch64.app.zip"
-          cd release-assets
-          shasum -a 256 FloatList_*.dmg FloatList_*.app.zip > SHA256SUMS
+          version="$(node -p "JSON.parse(require('fs').readFileSync('apps/desktop/src-tauri/tauri.conf.json', 'utf8')).version")"
+          cp "$dmg_path" "release-assets/FloatList_${version}_${RELEASE_ARCH}.dmg"
+          ditto -c -k --sequesterRsrc --keepParent "$app_path" "release-assets/FloatList_${version}_${RELEASE_ARCH}.app.zip"
       - uses: actions/upload-artifact@v7
         with:
-          name: FloatList-macOS-arm64
-          path: desktop/release-assets/*
+          name: FloatList-macOS-${{ matrix.arch }}
+          path: release-assets/*
+          if-no-files-found: error
+
+  publish:
+    needs: build-macos
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: FloatList-macOS-*
+          path: release-assets
+          merge-multiple: true
+      - name: Generate checksums
+        working-directory: release-assets
+        run: sha256sum FloatList_*.dmg FloatList_*.app.zip > SHA256SUMS
+      - uses: actions/upload-artifact@v7
+        with:
+          name: FloatList-v0.3.0-release-assets
+          path: release-assets/*
           if-no-files-found: error
       - name: Create GitHub Release
         if: startsWith(github.ref, 'refs/tags/')
-        working-directory: desktop
         env:
           GH_TOKEN: ${{ github.token }}
         run: >-
