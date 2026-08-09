@@ -5,6 +5,7 @@ describe("migratePersistedState", () => {
   it("creates demo data for empty or damaged input", () => {
     expect(migratePersistedState(undefined).tasks).toHaveLength(3);
     expect(migratePersistedState("{broken").settings.listTitle).toBe("工作清单");
+    expect(migratePersistedState(undefined).settings.onboardingCompleted).toBe(false);
   });
 
   it("migrates the old unversioned shape", () => {
@@ -12,9 +13,11 @@ describe("migratePersistedState", () => {
       tasks: [{ text: "旧任务", completed: true }],
       settings: { listTitle: "旧清单", opacity: 0.5 },
     });
-    expect(state.schemaVersion).toBe(3);
+    expect(state.schemaVersion).toBe(4);
     expect(state.tasks[0]).toMatchObject({ text: "旧任务", status: "done", order: 0, syncState: "pending" });
     expect(state.settings).toMatchObject({ listTitle: "旧清单", opacity: 0.5 });
+    expect(state.settings.onboardingCompleted).toBe(true);
+    expect(state.settings.quickAddShortcut).toBe("Command+Shift+N");
   });
 
   it("repairs invalid fields and removes invalid tasks", () => {
@@ -35,7 +38,7 @@ describe("migratePersistedState", () => {
 
   it("preserves status fields and repairs multiple doing tasks", () => {
     const state = migratePersistedState({
-      schemaVersion: 3,
+      schemaVersion: 4,
       tasks: [
         { id: "a", text: "第一项", status: "doing", syncState: "synced" },
         { id: "b", text: "第二项", status: "doing", syncState: "error" },
@@ -48,7 +51,7 @@ describe("migratePersistedState", () => {
 
   it("keeps one doing child per parent independently of the single doing root", () => {
     const state = migratePersistedState({
-      schemaVersion: 3,
+      schemaVersion: 4,
       tasks: [
         { id: "root", text: "主事项", status: "doing", order: 0 },
         { id: "child-a", parentId: "root", text: "第一步", status: "doing", order: 0 },
@@ -61,7 +64,7 @@ describe("migratePersistedState", () => {
 
   it("repairs invalid nesting and preserves blocked reasons", () => {
     const state = migratePersistedState({
-      schemaVersion: 3,
+      schemaVersion: 4,
       tasks: [
         { id: "root", text: "主事项", status: "todo", order: 0 },
         { id: "child", parentId: "root", text: "子事项", status: "blocked", blockedReason: "等待接口", order: 0 },
@@ -81,7 +84,7 @@ describe("migratePersistedState", () => {
 
   it("migrates sync settings and preserves a valid outbox", () => {
     const state = migratePersistedState({
-      schemaVersion: 3,
+      schemaVersion: 4,
       tasks: [],
       settings: {
         syncEnabled: true,

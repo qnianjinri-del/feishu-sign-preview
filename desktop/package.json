@@ -1,7 +1,7 @@
 {
   "name": "floatlist",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "license": "MIT",
   "scripts": {
@@ -10,7 +10,8 @@
     "lint": "eslint . --max-warnings=0",
     "test": "vitest run",
     "test:watch": "vitest",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "audit": "pnpm audit --audit-level=high"
   },
   "dependencies": {
     "@dnd-kit/core": "6.3.1",
@@ -21,9 +22,9 @@
     "@tauri-apps/plugin-global-shortcut": "2.3.2",
     "@tauri-apps/plugin-store": "2.4.4",
     "@tauri-apps/plugin-window-state": "2.4.1",
-    "lucide-react": "1.25.0",
-    "react": "19.2.7",
-    "react-dom": "19.2.7",
+    "lucide-react": "1.30.0",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
     "zustand": "5.0.14"
   },
   "devDependencies": {
@@ -31,19 +32,19 @@
     "@tauri-apps/cli": "2.11.4",
     "@testing-library/jest-dom": "7.0.0",
     "@testing-library/react": "16.3.2",
-    "@testing-library/user-event": "14.6.1",
+    "@testing-library/user-event": "14.6.3",
     "@types/node": "24.10.1",
-    "@types/react": "19.2.14",
-    "@types/react-dom": "19.2.3",
-    "@vitejs/plugin-react": "6.0.3",
-    "eslint": "10.7.0",
+    "@types/react": "19.2.18",
+    "@types/react-dom": "19.2.4",
+    "@vitejs/plugin-react": "6.0.5",
+    "eslint": "10.8.1",
     "eslint-plugin-react-hooks": "7.1.1",
     "eslint-plugin-react-refresh": "0.5.3",
-    "globals": "17.7.0",
+    "globals": "17.9.0",
     "jsdom": "29.1.1",
     "typescript": "5.9.3",
-    "typescript-eslint": "8.65.0",
-    "vite": "8.1.5",
+    "typescript-eslint": "8.66.0",
+    "vite": "8.2.1",
     "vitest": "4.1.10"
   },
   "packageManager": "pnpm@11.9.0"

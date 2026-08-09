@@ -5,7 +5,7 @@ import type { PersistedState } from "../src/types/state";
 import { DEFAULT_SETTINGS } from "../src/utils/defaults";
 
 const emptyState = (): PersistedState => ({
-  schemaVersion: 3,
+  schemaVersion: 4,
   tasks: [],
   settings: { ...DEFAULT_SETTINGS },
   sync: { outbox: [] },

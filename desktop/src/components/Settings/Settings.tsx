@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
-import { Cloud, Download, KeyRound, RefreshCw, Trash2, Upload, X } from "lucide-react";
+import { Cloud, Download, RefreshCw, Trash2, Upload, X } from "lucide-react";
 import {
-  configureSyncClientToken,
   removeSyncClientToken,
   runTaskSync,
 } from "../../services/syncCoordinator";
@@ -9,6 +8,7 @@ import { useTaskStore } from "../../stores/taskStore";
 
 interface SettingsProps {
   onClose: () => void;
+  onRunOnboarding: () => void;
 }
 
 function downloadJson(filename: string, data: unknown) {
@@ -21,7 +21,7 @@ function downloadJson(filename: string, data: unknown) {
   window.setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
-export function Settings({ onClose }: SettingsProps) {
+export function Settings({ onClose, onRunOnboarding }: SettingsProps) {
   const settings = useTaskStore((state) => state.settings);
   const tasks = useTaskStore((state) => state.tasks);
   const shortcutStatus = useTaskStore((state) => state.shortcutStatus);
@@ -44,10 +44,9 @@ export function Settings({ onClose }: SettingsProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [windowShortcut, setWindowShortcut] = useState(settings.toggleWindowShortcut);
   const [clickShortcut, setClickShortcut] = useState(settings.toggleClickThroughShortcut);
+  const [quickAddShortcut, setQuickAddShortcut] = useState(settings.quickAddShortcut);
   const [serviceUrl, setServiceUrl] = useState(settings.syncServiceUrl);
   const [pollInterval, setPollInterval] = useState(String(settings.syncPollIntervalSeconds));
-  const [clientToken, setClientToken] = useState("");
-  const [savingToken, setSavingToken] = useState(false);
 
   useEffect(() => {
     const keydown = (event: KeyboardEvent) => {
@@ -80,29 +79,10 @@ export function Settings({ onClose }: SettingsProps) {
     void runTaskSync();
   };
 
-  const saveToken = async () => {
-    if (!clientToken.trim()) {
-      showError("请粘贴同步 client token");
-      return;
-    }
-    setSavingToken(true);
-    try {
-      await configureSyncClientToken(clientToken);
-      setClientToken("");
-      showError("同步令牌已安全保存到 macOS 钥匙串");
-      if (settings.syncEnabled) void runTaskSync();
-    } catch (error) {
-      showError(error instanceof Error ? error.message : "同步令牌保存失败");
-    } finally {
-      setSavingToken(false);
-    }
-  };
-
   const removeToken = async () => {
     try {
       await removeSyncClientToken();
       setSyncEnabled(false);
-      setClientToken("");
       showError("同步令牌已从 macOS 钥匙串移除");
     } catch (error) {
       showError(error instanceof Error ? error.message : "同步令牌移除失败");
@@ -151,62 +131,29 @@ export function Settings({ onClose }: SettingsProps) {
             <legend>全局快捷键</legend>
             <label className="shortcut-row"><span>显示/隐藏窗口</span><input aria-label="显示隐藏窗口快捷键" value={windowShortcut} onChange={(event) => setWindowShortcut(event.target.value)} /></label>
             <label className="shortcut-row"><span>切换点击穿透</span><input aria-label="点击穿透快捷键" value={clickShortcut} onChange={(event) => setClickShortcut(event.target.value)} /></label>
-            <button type="button" className="secondary-button" onClick={() => setShortcuts(windowShortcut.trim(), clickShortcut.trim())}>应用快捷键</button>
+            <label className="shortcut-row"><span>快速新增任务</span><input aria-label="快速新增任务快捷键" value={quickAddShortcut} onChange={(event) => setQuickAddShortcut(event.target.value)} /></label>
+            <button type="button" className="secondary-button" onClick={() => setShortcuts(windowShortcut.trim(), clickShortcut.trim(), quickAddShortcut.trim())}>应用快捷键</button>
+            <div className="shortcut-registration-summary" aria-label="全局快捷键注册状态">
+              <span className={shortcutStatus.window ? "ready" : "failed"}>窗口 {shortcutStatus.window ? "已启用" : "不可用"}</span>
+              <span className={shortcutStatus.clickThrough ? "ready" : "failed"}>穿透 {shortcutStatus.clickThrough ? "已启用" : "不可用"}</span>
+              <span className={shortcutStatus.quickAdd ? "ready" : "failed"}>快速新增 {shortcutStatus.quickAdd ? "已启用" : "不可用"}</span>
+            </div>
             {shortcutStatus.errors.map((error) => <p className="setting-error" key={error}>{error}</p>)}
           </fieldset>
           <fieldset>
             <legend>飞书同步</legend>
-            <label className="setting-row">
-              <span>启用同步</span>
-              <input
-                type="checkbox"
-                checked={settings.syncEnabled}
-                onChange={(event) => toggleSync(event.target.checked)}
-              />
-            </label>
-            <label className="shortcut-row">
-              <span>同步服务地址</span>
-              <input
-                aria-label="同步服务地址"
-                value={serviceUrl}
-                placeholder="https://sync.example.com"
-                onChange={(event) => setServiceUrl(event.target.value)}
-              />
-            </label>
-            <label className="shortcut-row">
-              <span>可见时轮询间隔（秒）</span>
-              <input
-                aria-label="同步轮询间隔"
-                type="number"
-                min={5}
-                max={300}
-                value={pollInterval}
-                onChange={(event) => setPollInterval(event.target.value)}
-              />
-            </label>
-            <button type="button" className="secondary-button" onClick={saveSyncSettings}>
-              <Cloud size={14} /> 保存同步设置
-            </button>
-            <label className="shortcut-row">
-              <span>Client token（仅存钥匙串）</span>
-              <input
-                aria-label="同步 client token"
-                type="password"
-                autoComplete="off"
-                value={clientToken}
-                placeholder={syncRuntime.tokenConfigured ? "已保存，留空不修改" : "粘贴独立的同步令牌"}
-                onChange={(event) => setClientToken(event.target.value)}
-              />
-            </label>
-            <div className="data-actions">
-              <button type="button" className="secondary-button" disabled={savingToken} onClick={() => void saveToken()}>
-                <KeyRound size={14} /> {savingToken ? "保存中" : "保存令牌"}
-              </button>
-              {syncRuntime.tokenConfigured && (
-                <button type="button" className="secondary-button danger-text" onClick={() => void removeToken()}>
-                  <Trash2 size={14} /> 移除令牌
-                </button>
+            <div className={`sync-summary status-${syncRuntime.status}`}>
+              <strong>{syncStatusText}</strong>
+              <span>{sync.outbox.length ? `${sync.outbox.length} 项修改待提交` : "没有待提交修改"}</span>
+              {sync.lastSuccessfulSyncAt && (
+                <span>上次成功：{new Date(sync.lastSuccessfulSyncAt).toLocaleString()}</span>
               )}
+              {syncRuntime.message && <span>{syncRuntime.message}</span>}
+            </div>
+            <div className="data-actions">
+              <button type="button" className="primary-button" onClick={onRunOnboarding}>
+                <Cloud size={14} /> 运行连接向导
+              </button>
               <button
                 type="button"
                 className="secondary-button"
@@ -216,14 +163,45 @@ export function Settings({ onClose }: SettingsProps) {
                 <RefreshCw size={14} /> 立即同步
               </button>
             </div>
-            <div className={`sync-summary status-${syncRuntime.status}`}>
-              <strong>{syncStatusText}</strong>
-              <span>{sync.outbox.length ? `${sync.outbox.length} 项修改待提交` : "没有待提交修改"}</span>
-              {sync.lastSuccessfulSyncAt && (
-                <span>上次成功：{new Date(sync.lastSuccessfulSyncAt).toLocaleString()}</span>
-              )}
-              {syncRuntime.message && <span>{syncRuntime.message}</span>}
-            </div>
+            <label className="setting-row">
+              <span>启用同步</span>
+              <input
+                type="checkbox"
+                checked={settings.syncEnabled}
+                onChange={(event) => toggleSync(event.target.checked)}
+              />
+            </label>
+            <details className="advanced-settings">
+              <summary>高级同步设置</summary>
+              <label className="shortcut-row">
+                <span>同步服务地址</span>
+                <input
+                  aria-label="同步服务地址"
+                  value={serviceUrl}
+                  placeholder="https://sync.example.com"
+                  onChange={(event) => setServiceUrl(event.target.value)}
+                />
+              </label>
+              <label className="shortcut-row">
+                <span>可见时轮询间隔（秒）</span>
+                <input
+                  aria-label="同步轮询间隔"
+                  type="number"
+                  min={5}
+                  max={300}
+                  value={pollInterval}
+                  onChange={(event) => setPollInterval(event.target.value)}
+                />
+              </label>
+              <div className="data-actions">
+                <button type="button" className="secondary-button" onClick={saveSyncSettings}>保存高级设置</button>
+                {syncRuntime.tokenConfigured && (
+                  <button type="button" className="secondary-button danger-text" onClick={() => void removeToken()}>
+                    <Trash2 size={14} /> 移除钥匙串令牌
+                  </button>
+                )}
+              </div>
+            </details>
             {syncRuntime.status === "attention" && (
               <div className="sync-decision">
                 <p>
@@ -252,7 +230,7 @@ export function Settings({ onClose }: SettingsProps) {
           <fieldset>
             <legend>数据</legend>
             <div className="data-actions">
-              <button type="button" className="secondary-button" onClick={() => downloadJson(`floatlist-${new Date().toISOString().slice(0, 10)}.json`, { schemaVersion: 3, tasks, settings })}><Download size={14} /> 导出 JSON</button>
+              <button type="button" className="secondary-button" onClick={() => downloadJson(`floatlist-${new Date().toISOString().slice(0, 10)}.json`, { schemaVersion: 4, tasks, settings })}><Download size={14} /> 导出 JSON</button>
               <button type="button" className="secondary-button" onClick={() => inputRef.current?.click()}><Upload size={14} /> 导入 JSON</button>
               <input ref={inputRef} className="visually-hidden" type="file" accept="application/json,.json" onChange={onImport} />
             </div>

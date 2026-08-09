@@ -6,7 +6,7 @@ import type { PersistedState } from "../src/types/state";
 import { DEFAULT_SETTINGS } from "../src/utils/defaults";
 
 const state: PersistedState = {
-  schemaVersion: 3,
+  schemaVersion: 4,
   tasks: [
     {
       id: "doing",

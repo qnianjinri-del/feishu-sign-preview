@@ -6,7 +6,7 @@ import { resetTaskStoreForTests, useTaskStore } from "../src/stores/taskStore";
 import { DEFAULT_SETTINGS } from "../src/utils/defaults";
 
 describe("AddTask", () => {
-  beforeEach(() => resetTaskStoreForTests({ schemaVersion: 3, tasks: [], settings: { ...DEFAULT_SETTINGS }, sync: { outbox: [] } }));
+  beforeEach(() => resetTaskStoreForTests({ schemaVersion: 4, tasks: [], settings: { ...DEFAULT_SETTINGS }, sync: { outbox: [] } }));
 
   it("does not create an empty task", async () => {
     render(<AddTask focusSignal={0} />);

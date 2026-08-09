@@ -171,6 +171,7 @@ pub fn run() {
             sync::sync_delete_client_token,
             sync::sync_fetch_snapshot,
             sync::sync_has_client_token,
+            sync::sync_probe_service,
             sync::sync_send_mutations,
             sync::sync_set_client_token,
         ])

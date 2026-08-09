@@ -12,6 +12,8 @@ export interface AppSettings {
   launchAtLogin: boolean;
   toggleWindowShortcut: string;
   toggleClickThroughShortcut: string;
+  quickAddShortcut: string;
+  onboardingCompleted: boolean;
   syncEnabled: boolean;
   syncServiceUrl: string;
   syncPollIntervalSeconds: number;

@@ -23,6 +23,13 @@ pub struct SyncHttpResponse {
     body: Option<Value>,
 }
 
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SyncProbeResult {
+    status: u16,
+    sync_configured: bool,
+}
+
 fn default_keychain() -> Result<SecKeychain, String> {
     SecKeychain::default().map_err(|error| format!("无法打开 macOS 默认钥匙串：{error}"))
 }
@@ -82,6 +89,20 @@ fn read_client_token() -> Result<String, String> {
         Some(token) if !token.trim().is_empty() => Ok(token),
         _ => Err("尚未保存同步令牌".to_string()),
     }
+}
+
+fn parse_probe_result(status: u16, body: &Value) -> Result<SyncProbeResult, String> {
+    if body.get("status").and_then(Value::as_str) != Some("ok") {
+        return Err("同步服务健康检查未返回就绪状态".to_string());
+    }
+    let configured = body
+        .get("syncConfigured")
+        .and_then(Value::as_bool)
+        .ok_or_else(|| "同步服务健康检查格式无效".to_string())?;
+    Ok(SyncProbeResult {
+        status,
+        sync_configured: configured,
+    })
 }
 
 async fn run_keychain<T, F>(operation: F) -> Result<T, String>
@@ -198,6 +219,39 @@ pub async fn sync_delete_client_token() -> Result<(), String> {
 }
 
 #[tauri::command]
+pub async fn sync_probe_service(service_url: String) -> Result<SyncProbeResult, String> {
+    let base = validate_service_url(&service_url)?;
+    let url = base
+        .join("health/ready")
+        .map_err(|_| "无法拼接同步服务健康检查地址".to_string())?;
+    let response = http_client()?
+        .get(url)
+        .send()
+        .await
+        .map_err(|error| format!("无法连接同步服务：{}", error_chain(&error)))?;
+    let status = response.status().as_u16();
+    if response
+        .content_length()
+        .is_some_and(|length| length > MAX_RESPONSE_BYTES as u64)
+    {
+        return Err("同步服务响应过大".to_string());
+    }
+    let bytes = response
+        .bytes()
+        .await
+        .map_err(|error| format!("读取同步服务响应失败：{error}"))?;
+    if bytes.len() > MAX_RESPONSE_BYTES {
+        return Err("同步服务响应过大".to_string());
+    }
+    let body: Value = serde_json::from_slice(&bytes)
+        .map_err(|_| "同步服务健康检查返回了无效 JSON".to_string())?;
+    if status != 200 {
+        return Err(format!("同步服务健康检查返回 {status}"));
+    }
+    parse_probe_result(status, &body)
+}
+
+#[tauri::command]
 pub async fn sync_fetch_snapshot(
     service_url: String,
     etag: Option<String>,
@@ -235,7 +289,9 @@ pub async fn sync_send_mutations(
 
 #[cfg(test)]
 mod tests {
-    use super::validate_service_url;
+    use serde_json::json;
+
+    use super::{parse_probe_result, validate_service_url};
 
     #[test]
     fn accepts_https_and_local_development_urls() {
@@ -249,5 +305,14 @@ mod tests {
         assert!(validate_service_url("http://sync.example.com").is_err());
         assert!(validate_service_url("https://user:pass@sync.example.com").is_err());
         assert!(validate_service_url("https://sync.example.com?token=secret").is_err());
+    }
+
+    #[test]
+    fn parses_probe_configuration_without_accepting_unknown_shapes() {
+        let configured = parse_probe_result(200, &json!({ "status": "ok", "syncConfigured": true })).unwrap();
+        assert_eq!(configured.status, 200);
+        assert!(configured.sync_configured);
+        assert!(parse_probe_result(200, &json!({ "status": "ok" })).is_err());
+        assert!(parse_probe_result(200, &json!({ "status": "error", "syncConfigured": true })).is_err());
     }
 }

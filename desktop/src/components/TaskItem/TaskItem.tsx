@@ -36,6 +36,7 @@ interface SubtaskProgress {
 
 interface TaskItemProps {
   isSubtask?: boolean;
+  sortingDisabled?: boolean;
   subtaskProgress?: SubtaskProgress;
   task: Task;
 }
@@ -64,7 +65,7 @@ function taskStatusText(status: TaskStatus): string {
   return "待办";
 }
 
-export const TaskItem = memo(function TaskItem({ task, isSubtask = false, subtaskProgress }: TaskItemProps) {
+export const TaskItem = memo(function TaskItem({ task, isSubtask = false, sortingDisabled = false, subtaskProgress }: TaskItemProps) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(task.text);
   const [addingSubtask, setAddingSubtask] = useState(false);
@@ -83,7 +84,7 @@ export const TaskItem = memo(function TaskItem({ task, isSubtask = false, subtas
   const showError = useTaskStore((state) => state.showError);
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({
     id: task.id,
-    disabled: editing || addingSubtask || blocking,
+    disabled: sortingDisabled || editing || addingSubtask || blocking,
   });
   const style: CSSProperties = {
     transform: CSS.Transform.toString(transform),
@@ -293,6 +294,7 @@ export const TaskItem = memo(function TaskItem({ task, isSubtask = false, subtas
           type="button"
           className="icon-button drag-handle"
           aria-label={`拖动调整${isSubtask ? "子事项" : "事项"}顺序`}
+          disabled={sortingDisabled}
           {...attributes}
           {...listeners}
         >

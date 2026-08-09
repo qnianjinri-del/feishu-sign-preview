@@ -9,7 +9,7 @@ import type { PersistedState } from "../src/types/state";
 import { DEFAULT_SETTINGS } from "../src/utils/defaults";
 
 const state: PersistedState = {
-  schemaVersion: 3,
+  schemaVersion: 4,
   tasks: [{ id: "one", text: "第一项", status: "todo", order: 0, createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z", syncState: "pending" }],
   settings: { ...DEFAULT_SETTINGS },
   sync: { outbox: [] },

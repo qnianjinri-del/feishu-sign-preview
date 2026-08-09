@@ -8,6 +8,11 @@ interface SyncHttpResponse {
   body?: unknown;
 }
 
+export interface SyncProbeResult {
+  status: number;
+  syncConfigured: boolean;
+}
+
 export type SyncClientErrorKind = "auth" | "conflict" | "configuration" | "remote" | "transport";
 
 export class SyncClientError extends Error {
@@ -104,6 +109,12 @@ export async function saveSyncClientToken(token: string): Promise<void> {
 
 export async function deleteSyncClientToken(): Promise<void> {
   await call<void>("sync_delete_client_token");
+}
+
+export async function probeSyncService(serviceUrl: string): Promise<SyncProbeResult> {
+  const result = await call<SyncProbeResult>("sync_probe_service", { serviceUrl });
+  if (result.status !== 200) throw new SyncClientError(`同步服务健康检查返回 ${result.status}`, "remote");
+  return result;
 }
 
 export async function fetchTaskSnapshot(

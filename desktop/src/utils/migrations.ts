@@ -66,7 +66,7 @@ function sanitizeTheme(value: unknown): ThemeMode {
   return value === "light" || value === "dark" || value === "system" ? value : DEFAULT_SETTINGS.theme;
 }
 
-function sanitizeSettings(value: unknown): AppSettings {
+function sanitizeSettings(value: unknown, existingState: boolean): AppSettings {
   const source = isRecord(value) ? value : {};
   return {
     schemaVersion: CURRENT_SCHEMA_VERSION,
@@ -90,6 +90,13 @@ function sanitizeSettings(value: unknown): AppSettings {
       typeof source.toggleClickThroughShortcut === "string" && source.toggleClickThroughShortcut.trim()
         ? source.toggleClickThroughShortcut.trim().slice(0, 80)
         : DEFAULT_SETTINGS.toggleClickThroughShortcut,
+    quickAddShortcut:
+      typeof source.quickAddShortcut === "string" && source.quickAddShortcut.trim()
+        ? source.quickAddShortcut.trim().slice(0, 80)
+        : DEFAULT_SETTINGS.quickAddShortcut,
+    // Existing installations must not be interrupted by a newly introduced wizard.
+    onboardingCompleted:
+      typeof source.onboardingCompleted === "boolean" ? source.onboardingCompleted : existingState,
     syncEnabled: typeof source.syncEnabled === "boolean" ? source.syncEnabled : DEFAULT_SETTINGS.syncEnabled,
     syncServiceUrl:
       typeof source.syncServiceUrl === "string"
@@ -218,7 +225,7 @@ export function migratePersistedState(input: unknown): PersistedState {
   return {
     schemaVersion: CURRENT_SCHEMA_VERSION,
     tasks: normalizeTaskOrder(tasks),
-    settings: sanitizeSettings(input.settings),
+    settings: sanitizeSettings(input.settings, true),
     sync: sanitizePersistedSyncState(input.sync),
   };
 }

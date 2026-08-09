@@ -4,9 +4,12 @@ import {
   deleteSyncClientToken,
   fetchTaskSnapshot,
   hasSyncClientToken,
+  probeSyncService,
   saveSyncClientToken,
   sendTaskMutations,
 } from "./bitableSync";
+import type { SyncProbeResult } from "./bitableSync";
+import type { TaskSnapshot } from "../types/sync";
 
 let activeSync: Promise<void> | null = null;
 
@@ -72,7 +75,10 @@ export async function initializeSyncToken(): Promise<boolean> {
     useTaskStore.getState().setSyncTokenConfigured(configured);
     return configured;
   } catch (error) {
-    useTaskStore.getState().markSyncFailure(error instanceof Error ? error.message : "无法读取同步令牌");
+    const state = useTaskStore.getState();
+    if (state.settings.syncEnabled) {
+      state.markSyncFailure(error instanceof Error ? error.message : "无法读取同步令牌");
+    }
     return false;
   }
 }
@@ -85,4 +91,22 @@ export async function configureSyncClientToken(token: string): Promise<void> {
 export async function removeSyncClientToken(): Promise<void> {
   await deleteSyncClientToken();
   useTaskStore.getState().setSyncTokenConfigured(false);
+}
+
+export async function checkSyncService(serviceUrl: string): Promise<SyncProbeResult> {
+  return probeSyncService(serviceUrl);
+}
+
+export async function verifySyncConnection(serviceUrl: string, token: string): Promise<TaskSnapshot> {
+  await saveSyncClientToken(token);
+  try {
+    const result = await fetchTaskSnapshot(serviceUrl);
+    if (!result.snapshot) throw new SyncClientError("同步服务没有返回任务快照", "remote");
+    useTaskStore.getState().setSyncTokenConfigured(true);
+    return result.snapshot;
+  } catch (error) {
+    await deleteSyncClientToken().catch(() => undefined);
+    useTaskStore.getState().setSyncTokenConfigured(false);
+    throw error;
+  }
 }

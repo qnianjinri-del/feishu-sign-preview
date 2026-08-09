@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Check, Contrast, Eye, EyeOff, Minus, MoreHorizontal, Pin, PinOff } from "lucide-react";
+import { Check, Contrast, Eye, EyeOff, Minus, MoreHorizontal, Pin, PinOff, Search } from "lucide-react";
 import { useTaskStore } from "../../stores/taskStore";
 import { hideWindow } from "../../services/tauriWindow";
 import { quitApp } from "../../services/tray";
@@ -7,9 +7,11 @@ import { OpacityControl } from "../OpacityControl/OpacityControl";
 
 interface ToolbarProps {
   onOpenSettings: () => void;
+  filterOpen: boolean;
+  onToggleFilter: () => void;
 }
 
-export function Toolbar({ onOpenSettings }: ToolbarProps) {
+export function Toolbar({ onOpenSettings, filterOpen, onToggleFilter }: ToolbarProps) {
   const [open, setOpen] = useState<"opacity" | "more" | null>(null);
   const [confirmClear, setConfirmClear] = useState(false);
   const settings = useTaskStore((state) => state.settings);
@@ -25,6 +27,14 @@ export function Toolbar({ onOpenSettings }: ToolbarProps) {
     <div className="toolbar">
       <div className="window-drag-region" data-tauri-drag-region />
       <div className="toolbar-actions">
+        <button
+          type="button"
+          className={`icon-button${filterOpen ? " active" : ""}`}
+          aria-label="搜索和筛选任务"
+          onClick={onToggleFilter}
+        >
+          <Search size={14} />
+        </button>
         <button
           type="button"
           className={`icon-button${settings.alwaysOnTop ? " active" : ""}`}
