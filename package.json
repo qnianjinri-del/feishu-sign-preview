@@ -1,47 +1,39 @@
 {
-  "name": "feishu-sign-preview",
-  "version": "1.1.0",
+  "name": "floatlist-workspace",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
-  "description": "FloatList task sync gateway and Feishu signature preview service.",
+  "description": "FloatList desktop app, Feishu sync gateway, and shared protocol.",
   "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/qnianjinri-del/feishu-sign-preview.git"
-  },
-  "bugs": {
-    "url": "https://github.com/qnianjinri-del/feishu-sign-preview/issues"
-  },
-  "homepage": "https://github.com/qnianjinri-del/feishu-sign-preview#readme",
+  "packageManager": "pnpm@11.9.0",
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=22.0.0"
   },
   "scripts": {
-    "dev": "tsx watch src/app.ts",
-    "build": "tsc -p tsconfig.json",
-    "start": "node dist/app.js",
-    "install:sync-gateway": "npm run build && node scripts/install-macos-launch-agent.mjs",
-    "uninstall:sync-gateway": "node scripts/uninstall-macos-launch-agent.mjs",
-    "setup:bitable": "node scripts/setup-bitable-fields.mjs",
-    "setup:bitable:check": "node scripts/setup-bitable-fields.mjs --check",
-    "doctor": "node scripts/doctor.mjs",
-    "migrate:subtasks": "node scripts/migrate-embedded-subtasks.mjs",
-    "check": "tsc --noEmit -p tsconfig.json",
-    "test": "node --test --import tsx test/*.test.ts",
-    "audit": "npm audit --audit-level=high"
-  },
-  "dependencies": {
-    "@larksuiteoapi/node-sdk": "^1.42.0",
-    "dotenv": "^16.4.5",
-    "fastify": "^5.11.3",
-    "zod": "^3.23.8"
+    "dev:desktop": "pnpm --filter @floatlist/desktop dev",
+    "dev:gateway": "pnpm --filter @floatlist/gateway dev",
+    "tauri": "pnpm --filter @floatlist/desktop tauri",
+    "doctor": "pnpm --filter @floatlist/gateway doctor",
+    "setup:bitable": "pnpm --filter @floatlist/gateway setup:bitable",
+    "setup:bitable:check": "pnpm --filter @floatlist/gateway setup:bitable:check",
+    "build": "pnpm --filter @floatlist/contracts build && pnpm --filter @floatlist/gateway build && pnpm --filter @floatlist/desktop build",
+    "lint": "eslint apps/gateway/src apps/gateway/test packages/contracts/src packages/contracts/test --max-warnings=0 && pnpm --filter @floatlist/desktop lint",
+    "test": "pnpm --filter @floatlist/contracts test && pnpm --filter @floatlist/gateway test && pnpm --filter @floatlist/desktop test",
+    "test:coverage": "pnpm --filter @floatlist/contracts test:coverage && pnpm --filter @floatlist/gateway test:coverage && pnpm --filter @floatlist/desktop test:coverage",
+    "check": "pnpm --filter @floatlist/contracts check && pnpm --filter @floatlist/gateway check && pnpm --filter @floatlist/desktop check",
+    "audit": "pnpm audit --audit-level=high",
+    "rust:fmt": "cargo fmt --manifest-path apps/desktop/src-tauri/Cargo.toml --check",
+    "rust:check": "cargo check --manifest-path apps/desktop/src-tauri/Cargo.toml",
+    "rust:test": "cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml",
+    "rust:clippy": "cargo clippy --manifest-path apps/desktop/src-tauri/Cargo.toml --all-targets -- -D warnings",
+    "verify": "pnpm check && pnpm lint && pnpm test:coverage && pnpm build && pnpm audit && pnpm rust:fmt && pnpm rust:check && pnpm rust:test && pnpm rust:clippy"
   },
   "devDependencies": {
-    "@types/node": "^22.20.1",
-    "tsx": "^4.23.11",
-    "typescript": "^5.6.3"
-  },
-  "overrides": {
-    "fast-uri": "3.1.5"
+    "@eslint/js": "10.0.1",
+    "@types/node": "24.10.1",
+    "eslint": "10.8.1",
+    "globals": "17.9.0",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.66.0"
   }
 }
