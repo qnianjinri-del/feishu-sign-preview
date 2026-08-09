@@ -1,52 +1,41 @@
 # 贡献指南
 
-感谢你愿意参与 FloatList。仓库根目录是同步网关，`desktop/` 是 Tauri macOS 应用。
+感谢你愿意参与 FloatList。仓库采用统一 pnpm 工作区：`apps/desktop` 是 Tauri macOS 应用，`apps/gateway` 是飞书同步网关，`packages/contracts` 保存共享协议。
 
 ## 开发环境
 
-- Node.js 20.19 或更高版本
-- npm（同步网关）
-- pnpm 11（桌面端）
+- Node.js 22 或更高版本
+- pnpm 11（整个工作区）
 - Rust stable
 - macOS 13.5 或更高版本（运行和打包桌面端）
 
-## 同步网关
+## 安装与开发
 
 ```bash
-npm install
+corepack enable
+pnpm install --frozen-lockfile
 cp .env.example .env
-npm run dev
+pnpm dev:gateway
+# 另一个终端
+pnpm dev:desktop
 ```
 
-提交前运行（包含高危依赖检查）：
+纯本地桌面开发无需配置飞书。网关开发者可复制 `.env.example`，然后运行 `pnpm doctor` 做只读诊断；实际创建多维表格字段仍需显式运行 `pnpm setup:bitable`。
+
+## 提交前验证
 
 ```bash
-npm run check
-npm test
-npm run build
-npm run audit
+pnpm verify
 ```
 
-## 桌面端
+`verify` 会统一执行 TypeScript 检查、ESLint、覆盖率门禁、三个包的构建、高危依赖审计，以及 Rust fmt/check/test/clippy。只调试某一层时可使用 workspace filter：
 
 ```bash
-cd desktop
-pnpm install
-pnpm tauri dev
+pnpm --filter @floatlist/desktop test
+pnpm --filter @floatlist/gateway test
+pnpm --filter @floatlist/contracts test
+cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml
 ```
-
-提交前运行：
-
-```bash
-pnpm lint
-pnpm test
-pnpm build
-pnpm audit
-cargo check --manifest-path src-tauri/Cargo.toml
-cargo test --manifest-path src-tauri/Cargo.toml
-```
-
-纯本地环境无需配置飞书。网关开发者可复制 `.env.example`，然后运行 `npm run doctor` 做只读诊断；实际创建多维表格字段仍需显式运行 `npm run setup:bitable`。
 
 ## 代码边界
 
@@ -67,5 +56,5 @@ cargo test --manifest-path src-tauri/Cargo.toml
 
 - 不要提交 `.env`、App Secret、Client Token、签名证书或本机数据。
 - 前端组件不得直接访问飞书开放平台；业务网络请求由 Rust 原生层访问用户主动配置的同步服务。
-- 不要提交 `node_modules`、`dist`、`coverage`、`desktop/src-tauri/target`、`.app` 或 `.dmg`。
+- 不要提交 `node_modules`、`dist`、`coverage`、`apps/desktop/src-tauri/target`、`.app` 或 `.dmg`。
 - 新增业务行为时请同时增加自动化测试。
