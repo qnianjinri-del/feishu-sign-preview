@@ -1,5 +1,7 @@
 # FloatList × 飞书多维表格 × 个性签名三端同步规划书
 
+> 本文是 2026-07 的历史实施记录，保留用于追溯。当前 v0.2/schema v4 行为请以 [`ARCHITECTURE.md`](ARCHITECTURE.md) 和仓库根目录文档为准。
+
 > 更新日期：2026-07-23
 > 桌面端：FloatList（Tauri 2 / React / Zustand）
 > 服务端：`qnianjinri-del/feishu-sign-preview`（Fastify / 飞书链接预览）

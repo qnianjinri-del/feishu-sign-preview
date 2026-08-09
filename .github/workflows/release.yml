@@ -1,0 +1,67 @@
+name: macOS Release
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-macos:
+    runs-on: macos-14
+    defaults:
+      run:
+        working-directory: desktop
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 11.9.0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: desktop/pnpm-lock.yaml
+      - uses: dtolnay/rust-toolchain@stable
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm test
+      - run: pnpm audit --audit-level=high
+      - run: cargo test --manifest-path src-tauri/Cargo.toml
+      - name: Build ad-hoc signed app and DMG
+        run: pnpm tauri build --bundles app,dmg --ci
+      - name: Verify and collect artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          app_path="$(find src-tauri/target/release/bundle/macos -maxdepth 1 -name '*.app' -print -quit)"
+          dmg_path="$(find src-tauri/target/release/bundle/dmg -maxdepth 1 -name '*.dmg' -print -quit)"
+          test -n "$app_path"
+          test -n "$dmg_path"
+          codesign --verify --deep --strict "$app_path"
+          hdiutil verify "$dmg_path"
+          mkdir -p release-assets
+          version="$(node -p "JSON.parse(require('fs').readFileSync('src-tauri/tauri.conf.json', 'utf8')).version")"
+          cp "$dmg_path" "release-assets/FloatList_${version}_aarch64.dmg"
+          ditto -c -k --sequesterRsrc --keepParent "$app_path" "release-assets/FloatList_${version}_aarch64.app.zip"
+          cd release-assets
+          shasum -a 256 FloatList_*.dmg FloatList_*.app.zip > SHA256SUMS
+      - uses: actions/upload-artifact@v6
+        with:
+          name: FloatList-macOS-arm64
+          path: desktop/release-assets/*
+          if-no-files-found: error
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        working-directory: desktop
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          gh release create "$GITHUB_REF_NAME"
+          release-assets/*
+          --verify-tag
+          --generate-notes
+          --title "FloatList $GITHUB_REF_NAME"

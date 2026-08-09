@@ -9,12 +9,14 @@ FloatList 是一款面向 macOS 的本地优先桌面悬浮工作清单。窗口
 - `待办 / 正在做 / 受阻 / 已完成` 四态；根事项“正在做”唯一，子事项在各自父项内记录推进状态
 - 一层子事项、父项完成进度、受阻原因和父子级联删除/撤销
 - 已完成根事项当天仍显示，跨到下一天后自动从悬浮框隐藏；飞书历史记录不删除
+- `⌘F` 统一搜索筛选当前任务、四态和全部历史，筛选时自动禁用拖拽排序
 - 任务右键菜单与可见的“更多”菜单，可快速标记正在做
 - 删除/完成等任务操作的撤销与重做
 - 标题、透明度、主题、紧凑模式和已完成任务显示设置
 - Tauri Store 自动保存，应用重启后恢复任务和设置
 - Window State 保存窗口尺寸和位置，显示器变化后自动回到安全区域
 - macOS 菜单栏入口、关闭窗口时仅隐藏、全局显示/隐藏快捷键
+- 首次使用向导，以及从任意应用唤起并聚焦新增区的全局快捷键
 - 点击穿透、开机启动、自定义全局快捷键、JSON 导入/导出
 - 可选的飞书多维表格同步：本地乐观更新、离线队列、ETag 增量检查和冲突选择
 - 飞书主表只保留父/根事项行；子事项内嵌在父行隐藏字段中，父行“子状态”显示当前推进项
@@ -48,7 +50,7 @@ cargo check --manifest-path src-tauri/Cargo.toml
 cargo test --manifest-path src-tauri/Cargo.toml
 ```
 
-测试覆盖事项增删改、父子层级、四态切换、受阻原因、根事项唯一正在做、子状态推进、父项完成约束、撤销、排序、隐藏已完成、同步 mutation/outbox、远端快照与冲突、hydrate、v1/v2 → v3 迁移修复，以及关键 UI 键盘交互。
+测试覆盖事项增删改、父子层级、四态切换、搜索历史、快速新增、首次向导、受阻原因、根事项唯一正在做、子状态推进、父项完成约束、撤销、排序、隐藏已完成、同步 mutation/outbox、远端快照与冲突、hydrate、v1–v3 → v4 迁移修复，以及关键 UI 键盘交互。
 
 ## 构建 `.app` 和 `.dmg`
 
@@ -60,7 +62,7 @@ pnpm tauri build
 
 ```text
 src-tauri/target/release/bundle/macos/FloatList.app
-src-tauri/target/release/bundle/dmg/FloatList_0.1.0_aarch64.dmg
+src-tauri/target/release/bundle/dmg/FloatList_0.2.0_aarch64.dmg
 ```
 
 本地未签名构建首次打开时可能受 Gatekeeper 限制。对外分发前请配置 Developer ID Application 证书并执行 Apple 公证；签名凭据不应提交到仓库。
@@ -72,7 +74,8 @@ src-tauri/target/release/bundle/dmg/FloatList_0.1.0_aarch64.dmg
 | `⌘⇧Space` | 全局显示/隐藏窗口 |
 | `⌘⇧L` | 全局切换点击穿透 |
 | `⌘N` | 新建任务 |
-| `⌘⇧N` | 聚焦添加区，可粘贴多行 |
+| `⌘⇧N` | 全局唤起并聚焦添加区，可粘贴多行 |
+| `⌘F` | 搜索和筛选任务历史 |
 | `⌘Z` / `⌘⇧Z` | 撤销 / 重做 |
 | `⌘,` | 设置 |
 | `Enter` / `F2` | 编辑当前聚焦任务 |
@@ -83,7 +86,7 @@ src-tauri/target/release/bundle/dmg/FloatList_0.1.0_aarch64.dmg
 
 ## 本地数据与飞书同步
 
-正式数据由 `@tauri-apps/plugin-store` 写入应用数据目录中的 `floatlist.json`。当前 schema 为 v3；旧版 `completed` 布尔值会在加载时迁移为新状态且保留原任务 ID。v3 增加一层 `parentId` 和 `blockedReason`，迁移时会修复孤立或过深的层级。保存使用 220ms 防抖，正常退出前会主动 flush。无法解析的 Store 文件会先重命名为 `floatlist.corrupt-<timestamp>.json`，再以默认数据启动。
+正式数据由 `@tauri-apps/plugin-store` 写入应用数据目录中的 `floatlist.json`。当前 schema 为 v4；旧版 `completed` 布尔值会在加载时迁移为新状态且保留原任务 ID。v4 增加首次向导状态和快速新增快捷键；既有用户升级时不会被强制打断。迁移仍会修复孤立或过深的层级。保存使用 220ms 防抖，正常退出前会主动 flush。无法解析的 Store 文件会先重命名为 `floatlist.corrupt-<timestamp>.json`，再以默认数据启动。
 
 同步默认关闭。启用时，前端只通过 Tauri IPC 调用 Rust 原生客户端，Rust 再访问用户填写的 FloatList 同步服务；WebView 不直接访问飞书，也不持有飞书 App Secret。Client token 只写入 macOS 钥匙串，不进入 JSON 导出、Tauri Store 或前端持久化状态。
 
