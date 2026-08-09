@@ -152,6 +152,9 @@ importers:
       fastify:
         specifier: ^5.11.3
         version: 5.11.3
+      zod:
+        specifier: 3.25.76
+        version: 3.25.76
     devDependencies:
       '@types/node':
         specifier: ^22.20.1
