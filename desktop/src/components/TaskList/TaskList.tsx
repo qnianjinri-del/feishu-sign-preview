@@ -14,15 +14,17 @@ import {
 import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { useTodayStart } from "../../hooks/useTodayStart";
 import { useTaskStore } from "../../stores/taskStore";
-import { isExpiredCompletedRoot } from "../../utils/taskVisibility";
+import { filterTaskGroups, type TaskFilterMode } from "../../utils/taskFilter";
 import { EmptyState } from "../EmptyState/EmptyState";
 import { TaskDragPreview, TaskItem } from "../TaskItem/TaskItem";
 
 interface TaskListProps {
   onAdd: () => void;
+  filterMode?: TaskFilterMode;
+  query?: string;
 }
 
-export function TaskList({ onAdd }: TaskListProps) {
+export function TaskList({ onAdd, filterMode = "current", query = "" }: TaskListProps) {
   const tasks = useTaskStore((state) => state.tasks);
   const showCompleted = useTaskStore((state) => state.settings.showCompleted);
   const reorderTasks = useTaskStore((state) => state.reorderTasks);
@@ -33,27 +35,13 @@ export function TaskList({ onAdd }: TaskListProps) {
     useSensor(TouchSensor, { activationConstraint: { delay: 120, tolerance: 5 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
-  const groups = useMemo(() => {
-    const roots = tasks
-      .filter((task) => !task.parentId && !isExpiredCompletedRoot(task, todayStart))
-      .sort((left, right) => left.order - right.order);
-    return roots
-      .filter((root) => showCompleted || root.status !== "done")
-      .map((root) => {
-        const allChildren = tasks
-          .filter((task) => task.parentId === root.id)
-          .sort((left, right) => left.order - right.order);
-        return {
-          root,
-          children: allChildren.filter((child) => showCompleted || child.status !== "done"),
-          progress: {
-            total: allChildren.length,
-            done: allChildren.filter((child) => child.status === "done").length,
-            blocked: allChildren.filter((child) => child.status === "blocked").length,
-          },
-        };
-      });
-  }, [showCompleted, tasks, todayStart]);
+  const groups = useMemo(() => filterTaskGroups(tasks, {
+    mode: filterMode,
+    query,
+    showCompleted,
+    todayStart,
+  }), [filterMode, query, showCompleted, tasks, todayStart]);
+  const sortingDisabled = filterMode !== "current" || Boolean(query.trim());
   const activeTask = activeId ? tasks.find((task) => task.id === activeId) : undefined;
 
   const onDragStart = ({ active }: DragStartEvent) => setActiveId(String(active.id));
@@ -63,11 +51,19 @@ export function TaskList({ onAdd }: TaskListProps) {
   };
 
   if (!tasks.length) return <EmptyState onAdd={onAdd} />;
+  if (!groups.length && sortingDisabled) {
+    return (
+      <div className="empty-state compact-empty">
+        <strong>没有匹配的任务</strong>
+        <span>换个关键词或筛选条件试试</span>
+      </div>
+    );
+  }
   if (!groups.length) {
     return (
       <div className="empty-state compact-empty">
         <strong>今天的任务已清空</strong>
-        <span>历史完成事项仍保留在飞书多维表格</span>
+        <span>历史完成事项仍保留在任务记录中</span>
       </div>
     );
   }
@@ -84,9 +80,9 @@ export function TaskList({ onAdd }: TaskListProps) {
         <ul className="task-list" aria-label="任务列表">
           {groups.map(({ root, children, progress }) => (
             <Fragment key={root.id}>
-              <TaskItem task={root} subtaskProgress={progress} />
+              <TaskItem task={root} sortingDisabled={sortingDisabled} subtaskProgress={progress} />
               <SortableContext items={children.map((child) => child.id)} strategy={verticalListSortingStrategy}>
-                {children.map((child) => <TaskItem key={child.id} task={child} isSubtask />)}
+                {children.map((child) => <TaskItem key={child.id} task={child} isSubtask sortingDisabled={sortingDisabled} />)}
               </SortableContext>
             </Fragment>
           ))}

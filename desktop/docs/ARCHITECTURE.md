@@ -36,7 +36,7 @@ Feishu Bitable
 `src/services/persistence.ts` 是唯一 Store 插件入口：
 
 1. 启动时读取 `floatlist.json` 的 `state` key。
-2. `migratePersistedState` 把 v1/v2 数据升级为 v3，校验 schema、裁剪文本、修复重复根 doing 和同父项重复子 doing、孤立/过深层级、时间/同级顺序/设置并忽略无效事项。
+2. `migratePersistedState` 把 v1–v3 数据升级为 v4，校验 schema、裁剪文本、修复重复根 doing 和同父项重复子 doing、孤立/过深层级、时间/同级顺序/设置并忽略无效事项。既有数据默认跳过首次向导。
 3. 修改后在 220ms 防抖窗口结束时 `set + save`。
 4. 菜单栏退出先发出 `quit-requested`，React flush 后调用 Rust `quit_app`。
 5. Store 打开失败时调用 Rust `backup_corrupt_store` 保存原文件，再尝试以默认数据启动。
@@ -66,7 +66,9 @@ Rust 拦截主窗口 `CloseRequested` 并隐藏窗口，只有菜单和应用内
 
 ## 快捷键和点击穿透安全
 
-两个全局快捷键分别独立注册并记录结果。开启点击穿透前，store 会检查恢复快捷键是否注册成功；失败时显示 Toast 并拒绝开启。每次启动迁移都会强制 `clickThrough = false`，且窗口恢复阶段再次调用 `setIgnoreCursorEvents(false)`。
+显示/隐藏、点击穿透和快速新增三个全局快捷键分别注册并记录结果。快速新增会先关闭点击穿透，再显示、聚焦窗口和新增输入框。开启点击穿透前，store 会检查恢复快捷键是否注册成功；失败时显示 Toast 并拒绝开启。每次启动迁移都会强制 `clickThrough = false`，且窗口恢复阶段再次调用 `setIgnoreCursorEvents(false)`。
+
+任务搜索和筛选完全是 UI 派生状态，不写入 Store 或同步协议。筛选器使用纯函数保留父子上下文；筛选或搜索生效时禁用拖拽，避免对部分列表产生不明确的排序结果。
 
 ## 性能
 

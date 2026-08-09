@@ -4,6 +4,7 @@ import { isTauriRuntime } from "./runtime";
 export interface ShortcutRegistrationResult {
   window: boolean;
   clickThrough: boolean;
+  quickAdd: boolean;
   errors: string[];
 }
 
@@ -14,34 +15,49 @@ function nativeShortcut(value: string): string {
 export async function registerGlobalShortcuts(
   windowShortcut: string,
   clickThroughShortcut: string,
-  handlers: { toggleWindow: () => void; toggleClickThrough: () => void },
+  quickAddShortcut: string,
+  handlers: { toggleWindow: () => void; toggleClickThrough: () => void; quickAdd: () => void },
 ): Promise<ShortcutRegistrationResult> {
-  if (!isTauriRuntime()) return { window: true, clickThrough: true, errors: [] };
+  if (!isTauriRuntime()) return { window: true, clickThrough: true, quickAdd: true, errors: [] };
 
-  const result: ShortcutRegistrationResult = { window: false, clickThrough: false, errors: [] };
+  const result: ShortcutRegistrationResult = { window: false, clickThrough: false, quickAdd: false, errors: [] };
   const windowNative = nativeShortcut(windowShortcut);
   const clickNative = nativeShortcut(clickThroughShortcut);
+  const quickAddNative = nativeShortcut(quickAddShortcut);
 
   // Clear registrations left by a dev hot reload before claiming the new combinations.
-  await Promise.all([unregister(windowNative).catch(() => undefined), unregister(clickNative).catch(() => undefined)]);
+  await Promise.all([...new Set([windowNative, clickNative, quickAddNative])]
+    .map((shortcut) => unregister(shortcut).catch(() => undefined)));
 
-  try {
-    await register(windowNative, (event) => {
-      if (event.state === "Pressed") handlers.toggleWindow();
-    });
-    result.window = true;
-  } catch {
-    result.errors.push(`快捷键 ${windowShortcut} 注册失败`);
+  const duplicates = new Set<string>();
+  for (const [shortcut, count] of [...new Set([windowNative, clickNative, quickAddNative])]
+    .map((shortcut) => [shortcut, [windowNative, clickNative, quickAddNative].filter((item) => item === shortcut).length] as const)) {
+    if (count > 1) duplicates.add(shortcut);
   }
 
-  try {
-    await register(clickNative, (event) => {
-      if (event.state === "Pressed") handlers.toggleClickThrough();
-    });
-    result.clickThrough = true;
-  } catch {
-    result.errors.push(`快捷键 ${clickThroughShortcut} 注册失败`);
-  }
+  const registerOne = async (
+    native: string,
+    display: string,
+    key: "window" | "clickThrough" | "quickAdd",
+    handler: () => void,
+  ) => {
+    if (duplicates.has(native)) {
+      result.errors.push(`快捷键 ${display} 与其他操作重复`);
+      return;
+    }
+    try {
+      await register(native, (event) => {
+        if (event.state === "Pressed") handler();
+      });
+      result[key] = true;
+    } catch {
+      result.errors.push(`快捷键 ${display} 注册失败`);
+    }
+  };
+
+  await registerOne(windowNative, windowShortcut, "window", handlers.toggleWindow);
+  await registerOne(clickNative, clickThroughShortcut, "clickThrough", handlers.toggleClickThrough);
+  await registerOne(quickAddNative, quickAddShortcut, "quickAdd", handlers.quickAdd);
   return result;
 }
 

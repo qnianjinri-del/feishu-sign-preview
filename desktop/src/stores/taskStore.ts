@@ -29,6 +29,7 @@ interface ToastState {
 interface ShortcutStatus {
   window: boolean;
   clickThrough: boolean;
+  quickAdd: boolean;
   errors: string[];
 }
 
@@ -63,7 +64,8 @@ interface TaskStoreState {
   setTheme: (theme: ThemeMode) => void;
   setClickThrough: (value: boolean) => Promise<void>;
   setLaunchAtLogin: (value: boolean) => Promise<void>;
-  setShortcuts: (windowShortcut: string, clickThroughShortcut: string) => void;
+  setShortcuts: (windowShortcut: string, clickThroughShortcut: string, quickAddShortcut: string) => void;
+  setOnboardingCompleted: (value: boolean) => void;
   setSyncEnabled: (value: boolean) => void;
   setSyncConfig: (serviceUrl: string, pollIntervalSeconds: number) => void;
   setSyncTokenConfigured: (configured: boolean) => void;
@@ -94,7 +96,7 @@ function cloneTasks(tasks: Task[]): Task[] {
 
 function persistedSnapshot(state: Pick<TaskStoreState, "tasks" | "settings" | "sync">): PersistedState {
   return {
-    schemaVersion: 3,
+    schemaVersion: 4,
     tasks: cloneTasks(state.tasks),
     settings: { ...state.settings },
     sync: {
@@ -156,7 +158,7 @@ export const useTaskStore = create<TaskStoreState>((set, get) => {
     historyPast: [],
     historyFuture: [],
     toast: null,
-    shortcutStatus: { window: false, clickThrough: false, errors: [] },
+    shortcutStatus: { window: false, clickThrough: false, quickAdd: false, errors: [] },
 
     addTask: (text) => {
       get().addTasks([text]);
@@ -322,8 +324,9 @@ export const useTaskStore = create<TaskStoreState>((set, get) => {
     setShowCompleted: (showCompleted) => updateSettings({ showCompleted }),
     setCompactMode: (compactMode) => updateSettings({ compactMode }),
     setTheme: (theme) => updateSettings({ theme }),
-    setShortcuts: (toggleWindowShortcut, toggleClickThroughShortcut) =>
-      updateSettings({ toggleWindowShortcut, toggleClickThroughShortcut }),
+    setShortcuts: (toggleWindowShortcut, toggleClickThroughShortcut, quickAddShortcut) =>
+      updateSettings({ toggleWindowShortcut, toggleClickThroughShortcut, quickAddShortcut }),
+    setOnboardingCompleted: (onboardingCompleted) => updateSettings({ onboardingCompleted }),
     setSyncEnabled: (syncEnabled) => {
       updateSettings({ syncEnabled });
       set((state) => ({
@@ -638,6 +641,6 @@ export function resetTaskStoreForTests(input?: PersistedState): void {
     historyPast: [],
     historyFuture: [],
     toast: null,
-    shortcutStatus: { window: true, clickThrough: true, errors: [] },
+    shortcutStatus: { window: true, clickThrough: true, quickAdd: true, errors: [] },
   });
 }

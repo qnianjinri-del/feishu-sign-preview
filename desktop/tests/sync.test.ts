@@ -5,7 +5,7 @@ import type { TaskSnapshot } from "../src/types/sync";
 import { DEFAULT_SETTINGS } from "../src/utils/defaults";
 
 const syncedState = (): PersistedState => ({
-  schemaVersion: 3,
+  schemaVersion: 4,
   tasks: [{
     id: "remote-one",
     text: "已有事项",

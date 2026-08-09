@@ -2,7 +2,7 @@ import type { AppSettings } from "../types/settings";
 import type { PersistedState } from "../types/state";
 import type { Task } from "../types/task";
 
-export const CURRENT_SCHEMA_VERSION = 3 as const;
+export const CURRENT_SCHEMA_VERSION = 4 as const;
 export const MAX_TASK_LENGTH = 4_000;
 export const MAX_BATCH_TASKS = 500;
 
@@ -18,6 +18,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   launchAtLogin: false,
   toggleWindowShortcut: "Command+Shift+Space",
   toggleClickThroughShortcut: "Command+Shift+L",
+  quickAddShortcut: "Command+Shift+N",
+  onboardingCompleted: false,
   syncEnabled: false,
   syncServiceUrl: "http://127.0.0.1:3000",
   syncPollIntervalSeconds: 10,
