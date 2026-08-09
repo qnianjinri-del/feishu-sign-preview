@@ -65,6 +65,28 @@ test("TaskSyncService treats root and child doing states independently", async (
   });
 });
 
+test("snapshot versions ignore remote metadata but track semantic task changes", async () => {
+  const original = {
+    ...task("stable"),
+    createdAt: "2026-01-01T00:00:00.000Z",
+    updatedAt: "2026-01-01T00:00:00.000Z",
+    remoteUpdatedAt: "2026-01-01T00:00:00.000Z",
+  };
+  const repository = new FakeTaskRepository([original]);
+  const service = new TaskSyncService(repository);
+  const first = await service.getSnapshot();
+
+  original.remoteRecordId = "rec-reconciled";
+  original.updatedAt = "2026-01-02T00:00:00.000Z";
+  original.remoteUpdatedAt = "2026-01-02T00:00:00.000Z";
+  const metadataOnly = await service.getSnapshot();
+  assert.equal(metadataOnly.version, first.version);
+
+  original.text = "用户修改后的内容";
+  const semanticChange = await service.getSnapshot();
+  assert.notEqual(semanticChange.version, first.version);
+});
+
 test("TaskSyncService shows a single child name and clears ambiguous idle child summaries", async () => {
   const singleParent = task("single-parent");
   const onlyChild = { ...task("only-child"), parentId: singleParent.id, text: "唯一子项" };

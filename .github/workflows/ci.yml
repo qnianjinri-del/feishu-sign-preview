@@ -13,8 +13,8 @@ jobs:
   gateway:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
           node-version: 22
           cache: npm
@@ -22,6 +22,7 @@ jobs:
       - run: npm run check
       - run: npm test
       - run: npm run build
+      - run: npm run audit
 
   desktop:
     runs-on: macos-14
@@ -29,11 +30,11 @@ jobs:
       run:
         working-directory: desktop
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v6
         with:
           version: 11.9.0
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: 22
           cache: pnpm
@@ -43,4 +44,6 @@ jobs:
       - run: pnpm lint
       - run: pnpm test
       - run: pnpm build
+      - run: pnpm audit
       - run: cargo check --manifest-path src-tauri/Cargo.toml
+      - run: cargo test --manifest-path src-tauri/Cargo.toml

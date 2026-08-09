@@ -1,6 +1,6 @@
 {
   "name": "feishu-sign-preview",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "type": "module",
   "description": "FloatList task sync gateway and Feishu signature preview service.",
@@ -24,19 +24,24 @@
     "uninstall:sync-gateway": "node scripts/uninstall-macos-launch-agent.mjs",
     "setup:bitable": "node scripts/setup-bitable-fields.mjs",
     "setup:bitable:check": "node scripts/setup-bitable-fields.mjs --check",
+    "doctor": "node scripts/doctor.mjs",
     "migrate:subtasks": "node scripts/migrate-embedded-subtasks.mjs",
     "check": "tsc --noEmit -p tsconfig.json",
-    "test": "node --test --import tsx test/*.test.ts"
+    "test": "node --test --import tsx test/*.test.ts",
+    "audit": "npm audit --audit-level=high"
   },
   "dependencies": {
     "@larksuiteoapi/node-sdk": "^1.42.0",
     "dotenv": "^16.4.5",
-    "fastify": "^5.1.0",
+    "fastify": "^5.11.3",
     "zod": "^3.23.8"
   },
   "devDependencies": {
-    "@types/node": "^22.9.0",
-    "tsx": "^4.23.1",
+    "@types/node": "^22.20.1",
+    "tsx": "^4.23.11",
     "typescript": "^5.6.3"
+  },
+  "overrides": {
+    "fast-uri": "3.1.5"
   }
 }

@@ -276,7 +276,18 @@ export class TaskSyncService {
         taskIds: orphans.map((task) => task.id),
       });
     }
-    const version = createHash("sha256").update(JSON.stringify({ tasks, warnings })).digest("hex");
+    // The ETag represents user-visible task meaning, not reconciliation metadata.
+    // Feishu may refresh record IDs and timestamps while normalizing rows; including
+    // those fields would make an unchanged list look like a concurrent edit.
+    const semanticTasks = tasks.map((task) => ({
+      id: task.id,
+      text: task.text,
+      status: task.status,
+      order: task.order,
+      parentId: task.parentId ?? null,
+      blockedReason: task.blockedReason ?? null,
+    }));
+    const version = createHash("sha256").update(JSON.stringify(semanticTasks)).digest("hex");
     return { version, tasks, warnings };
   }
 
@@ -292,7 +303,9 @@ export class TaskSyncService {
         result.push(child.order === childOrder ? child : { ...child, order: childOrder });
       });
     }
-    result.push(...tasks.filter((task) => task.parentId && !tasks.some((parent) => parent.id === task.parentId)));
+    result.push(...tasks
+      .filter((task) => task.parentId && !tasks.some((parent) => parent.id === task.parentId))
+      .sort((left, right) => left.order - right.order || left.id.localeCompare(right.id)));
     return result;
   }
 
