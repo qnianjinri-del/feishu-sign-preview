@@ -24,6 +24,8 @@
     "store:default",
     "window-state:default",
     "global-shortcut:default",
+    "global-shortcut:allow-register",
+    "global-shortcut:allow-unregister",
     "notification:default",
     "autostart:default"
   ]

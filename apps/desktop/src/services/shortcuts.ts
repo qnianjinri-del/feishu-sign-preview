@@ -50,8 +50,9 @@ export async function registerGlobalShortcuts(
         if (event.state === "Pressed") handler();
       });
       result[key] = true;
-    } catch {
-      result.errors.push(`快捷键 ${display} 注册失败`);
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error);
+      result.errors.push(detail ? `快捷键 ${display} 注册失败：${detail}` : `快捷键 ${display} 注册失败`);
     }
   };
 
